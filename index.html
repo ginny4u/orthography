@@ -134,6 +134,30 @@ details.art[open] summary .no{color:var(--accent)}
 .badge{font-family:var(--sans);font-size:.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 8px}
 .schoolrow{font-size:.92rem;margin:4px 0 0}
 .schoolrow b{font-family:var(--serif)}
+/* 로그인 */
+.form{display:grid;gap:6px;margin-top:20px}
+.form label{font-size:.8rem;color:var(--muted);font-weight:600;margin-top:8px}
+.form input{font:inherit;font-size:1.1rem;padding:11px 12px;border:1px solid var(--rule);border-radius:10px;background:var(--paper);color:var(--ink);width:100%}
+.form .btn.wide{margin-top:16px}
+.err{color:var(--accent);font-size:.88rem;margin:6px 0 0}
+/* 순위표 */
+.seg{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:10px}
+.seg .chips{gap:6px}
+.seg .chip{padding:4px 11px;font-size:.84rem}
+.rank{border-top:1px solid var(--ink)}
+.rank .r{display:grid;grid-template-columns:2.6em 1fr auto;gap:8px;align-items:baseline;padding:9px 6px;border-bottom:1px solid var(--rule);font-variant-numeric:tabular-nums}
+.rank .r .no{color:var(--muted);font-weight:600}
+.rank .r.top .no{color:var(--accent)}
+.rank .r .nm{font-weight:600;min-width:0;line-height:1.55}
+.rank .r .nm>span{white-space:nowrap}
+.rank .r .nm small{font-weight:400;color:var(--muted);font-size:.76rem;margin-left:4px}
+.rank .r .nm .sep{font-style:normal;font-weight:400;color:var(--muted)}
+.rank .r .d{font-size:.85rem;color:var(--muted)}
+.rank .r.me{background:var(--accent-soft)}
+.rank .gap{text-align:center;color:var(--muted);font-size:.8rem;padding:2px 0}
+.rank-msg{font-size:.85rem;color:var(--muted);padding:10px 0 2px}
+.rank-msg.go{color:var(--accent);font-weight:600}
+.panel .stats{border-top:1px solid var(--rule);padding-top:10px;margin-top:12px}
 footer{margin-top:44px;padding-top:12px;border-top:1px solid var(--rule);font-size:.75rem;color:var(--muted)}
 </style>
 </head>
@@ -151,7 +175,7 @@ footer{margin-top:44px;padding-top:12px;border-top:1px solid var(--rule);font-si
     </nav>
   </header>
   <main id="app"></main>
-  <footer>조항 원문과 예시는 국립국어원 ‘한글 맞춤법’(2017) 기준. 표준 발음법은 범위 밖. 공부 기록은 지금 쓰는 폰(브라우저)에만 저장됨.</footer>
+  <footer>조항 원문과 예시는 국립국어원 ‘한글 맞춤법’(2017) 기준. 표준 발음법은 범위 밖. 로그인하면 기록은 트래커 계정에 저장되고, 순위표에는 이름·학교·맞힌 개수만 올라감.</footer>
 </div>
 <script src="data.js"></script>
 <script>
@@ -160,6 +184,9 @@ footer{margin-top:44px;padding-top:12px;border-top:1px solid var(--rule);font-si
 const D = window.ORTH_COMMON;
 const app = document.getElementById('app');
 if(!D){ app.innerHTML='<p class="empty">문제 파일을 못 불러옴. 새로고침해 봐.</p>'; return; }
+
+/* ---------- 서버: 내신 클리닉 트래커 웹 앱(계정·비밀번호 같이 씀). 비우면 로그인 없이 이 폰에만 저장 */
+const API = 'https://script.google.com/macros/s/AKfycbxN_zUg62UVzI-xkiB_-CxSnZND29jsOmX6yDW-QLcFYvlQlh3QnpAGBCkDG11Zqik-_A/exec';
 
 /* ---------- 기본 데이터 */
 const SCHOOLS = ['공항고','동양고','명덕고','한서고','경복여고'];
@@ -181,23 +208,126 @@ const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
 const BLANKS = D.blanks.map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
 const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p;}); BLANKS.forEach(b=>BYID[b.id]=b);
 
-/* ---------- 저장 */
-const KEY='orth.v1';
-let store = {school:null, rng:['s','f','w','e'], type:'pick', n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0};
-try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s) store=Object.assign(store,s); }catch(e){}
-if(!SCHOOLS.includes(store.school)) store.school=null;
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
+/* ---------- 저장: 로그인한 학생마다 따로, 로그인 없이 둘러보면 이 폰 공용 */
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ if(v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
+const AKEY='orth.auth';
+let auth=null;        // {token, me:{id,name,school}, tt: 이 사이트가 트래커에 넣어 준 토큰}
+try{ const a=JSON.parse(lsGet(AKEY)||'null'); if(a && a.token && a.me && a.me.id) auth=a; }catch(e){}
+let guest=false;
+const BASE=()=>({school:null, rng:['s','f','w','e'], type:'pick', n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0, pending:[], outbox:null, bs:{sc:'school', per:'week'}});
+let skey='orth.v1', store=BASE();
+function useStore(){
+  skey = auth ? 'orth.v1:'+auth.me.id : 'orth.v1';
+  store = BASE();
+  try{ const s=JSON.parse(lsGet(skey)||'null'); if(s) Object.assign(store, s); }catch(e){}
+  if(!Array.isArray(store.pending)) store.pending=[];
+  if(!store.bs) store.bs={sc:'school', per:'week'};
+  if(auth) store.school=auth.me.school;
+  else if(!SCHOOLS.includes(store.school)) store.school=null;
+}
+function save(){ lsSet(skey, JSON.stringify(store)); }
+function setAuth(token, me){
+  const same = !!auth && auth.me.id===me.id;
+  auth = {token, me:{id:me.id, name:me.name, school:me.school}, tt: same ? (auth.tt||'') : ''};
+  lsSet(AKEY, JSON.stringify(auth));
+  if(same){ store.school=me.school; save(); } else useStore();
+}
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function todayCount(){ return store.day===today() ? store.dayIds.length : 0; }
+
+/* ---------- 서버 */
+let srv = {state:'', board:null};   // state: loading · ok · noserver · neterr · relogin
+function api(action, payload){
+  const ctl = typeof AbortController!=='undefined' ? new AbortController() : null;
+  const tm = ctl ? setTimeout(()=>ctl.abort(), 30000) : null;
+  return fetch(API, {method:'POST', body:JSON.stringify(Object.assign({action}, payload||{})), signal: ctl ? ctl.signal : undefined})
+    .then(r=>r.json()).then(x=>{ clearTimeout(tm); return x || {ok:false, error:'빈 응답'}; })
+    .catch(()=>{ clearTimeout(tm); return {ok:false, net:true, error:'서버 연결이 안 됨. 인터넷 확인하고 다시.'}; });
+}
+const authErr = r => !!r && !r.ok && /로그인 시간이 지났|등록된 학생이 아닙/.test(r.error||'');
+const noServer = r => !!r && !r.ok && /알 수 없는 요청/.test(r.error||'');
+const newCid = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const unsent = () => (store.outbox ? store.outbox.res : []).concat(store.pending);
+
+// 서버 숫자로 맞추고, 아직 안 올라간 것만 다시 얹음
+function applyMine(m){
+  if(!m) return;
+  store.total=+m.total||0; store.day=m.day||''; store.dayIds=(m.dayIds||[]).slice();
+  unsent().forEach(([id,ok])=>{ if(ok && store.day===today() && !store.dayIds.includes(id)){ store.dayIds.push(id); store.total++; } });
+}
+function applyOrth(o){
+  if(!o) return;
+  const st={}; Object.keys(o.st||{}).forEach(id=>{ const v=o.st[id]||[]; st[id]={c:+v[0]||0, w:+v[1]||0}; });
+  const wrong={}; (o.wrong||[]).forEach(id=>{ wrong[id]=1; });
+  store.st=st; store.wrong=wrong;
+  unsent().forEach(([id,ok])=>{ const s=store.st[id]||(store.st[id]={c:0,w:0}); if(ok){ s.c++; delete store.wrong[id]; } else { s.w++; store.wrong[id]=1; } });
+  applyMine(o.mine); srv.board=o.board||null; srv.state='ok'; save();
+}
+// 푼 결과 올리기(묶음 번호가 같으면 서버가 한 번만 반영)
+let flushing=null;
+function flush(){
+  if(!auth || !API) return Promise.resolve(null);
+  if(flushing) return flushing;
+  if(!store.outbox){
+    if(!store.pending.length) return Promise.resolve(null);
+    store.outbox={cid:newCid(), res:store.pending.splice(0,200)}; save();
+  }
+  const box=store.outbox, who=auth.me.id;
+  flushing = api('orthSync', {token:auth.token, cid:box.cid, res:box.res}).then(r=>{
+    flushing=null;
+    if(!auth || auth.me.id!==who) return r;
+    if(r.ok){
+      if(store.outbox && store.outbox.cid===box.cid) store.outbox=null;
+      applyMine(r.mine); if(r.board) srv.board=r.board; srv.state='ok'; save();
+      if(store.pending.length) return flush();
+    }
+    else if(authErr(r)) srv.state='relogin';
+    else if(noServer(r)) srv.state='noserver';
+    else if(!srv.board) srv.state='neterr';
+    redraw();
+    return r;
+  });
+  return flushing;
+}
+// 창을 닫거나 다른 앱으로 넘어갈 때 남은 기록을 보내 둠(다음에 같은 묶음 번호로 다시 보내도 한 번만 셈)
+function beacon(){
+  if(!auth || !API || flushing || !navigator.sendBeacon) return;
+  if(!store.outbox){ if(!store.pending.length) return; store.outbox={cid:newCid(), res:store.pending.splice(0,200)}; save(); }
+  try{ navigator.sendBeacon(API, JSON.stringify({action:'orthSync', token:auth.token, cid:store.outbox.cid, res:store.outbox.res})); }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') beacon(); });
+window.addEventListener('pagehide', beacon);
+
+function refresh(fromBoot){
+  if(!auth || !API) return;
+  if(!srv.board) srv.state='loading';
+  const who=auth.me.id;
+  flush().then(r=>{
+    if(!auth || auth.me.id!==who) return;
+    if(r && authErr(r)) return lost(fromBoot);
+    return api('orthHome', {token:auth.token}).then(x=>{
+      if(!auth || auth.me.id!==who) return;
+      if(x.ok && x.me){ setAuth(x.otoken||auth.token, x.me); applyOrth(x.orth); }
+      else if(authErr(x)) return lost(fromBoot);
+      else if(noServer(x)) srv.state='noserver';
+      else if(!srv.board) srv.state='neterr';
+      redraw();
+    });
+  });
+}
+function lost(fromBoot){ srv.state='relogin'; if(fromBoot && view==='home') return relogin(); redraw(); }
+function redraw(){ if(view==='home') renderHome(); else if(view==='notes') renderNotes(); }
 
 /* ---------- 유틸 */
 const esc0 = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* 화면 표시용: 줄 끝에서 ‘-’ 뒤로 끊기지 않게 줄 바꿈 없는 하이픈으로 */
-const esc = s => esc0(s).replace(/-/g,'\u2011');
+const esc = s => esc0(s).replace(/-/g,'‑');
 const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
 const norm = s => String(s).replace(/[\s‘’'"“”\-·,.()]/g,'');
 function artLabel(n){ const a=ART[n]; return '제'+n+'항'+(a?' · '+a.k:''); }
 function partLabel(p){ return p && p.p ? ' '+(/^\d/.test(p.p)?p.p:'['+p.p+']') : ''; }
+const hero = t => '<div class="hero"><img src="char.webp" alt="" width="76" height="95"><div class="bubble">'+t+'</div></div>';
 
 /* ---------- 범위 */
 function allowedArts(rng){
@@ -230,13 +360,116 @@ function prepare(q){
 }
 
 /* ---------- 화면 전환 */
-let tab = 'practice', sess = null;
+let tab = 'practice', sess = null, view = '';
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ sess=null; go(b.dataset.tab); });
-document.getElementById('brand').onclick=()=>{ sess=null; renderPick(); window.scrollTo(0,0); };
+document.getElementById('brand').onclick=()=>{
+  sess=null;
+  if(auth) go('practice'); else if(guest) renderPick(); else renderLogin(L.step==='wait'?'wait':'name');
+  window.scrollTo(0,0);
+};
 function go(t){
   tab=t; document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===t?'page':'false'));
   if(t==='practice') (store.school ? renderHome() : renderPick()); else if(t==='rules') renderRules(); else renderNotes();
   window.scrollTo(0,0);
+  if(auth && (store.pending.length || store.outbox)) flush();
+}
+function setTabs(show){ document.querySelector('.tabs').hidden = !show; }
+
+/* ---------- 로그인(트래커와 같은 이름·비밀번호) */
+let L = {step:'name', name:'', matches:[], pick:null, err:'', tok:'', re:false};
+const resetL = () => { L = {step:'name', name:'', matches:[], pick:null, err:'', tok:'', re:false}; };
+function renderLogin(step){
+  view='login'; setTabs(false); if(step) L.step=step;
+  const err = L.err ? '<p class="err" role="alert">'+esc(L.err)+'</p>' : '';
+  const pw = (id, ac) => '<input id="'+id+'" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="'+ac+'" placeholder="••••">';
+  let html='';
+  if(L.step==='wait') html=hero('불러오는 중…');
+  else if(L.step==='name') html=hero('이름부터. 트래커에 쓰는 그 이름.')+
+    '<form class="form" id="f-name" novalidate><label for="in-name">이름</label>'+
+    '<input id="in-name" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc0(L.name)+'" placeholder="홍길동">'+err+
+    '<button class="btn primary wide" type="submit">다음</button></form>'+
+    '<p class="note" style="text-align:center;margin-top:28px"><button type="button" class="linkbtn" id="guest">로그인 없이 둘러보기</button><br>기록은 이 폰에만, 순위표엔 안 올라감</p>';
+  else if(L.step==='pick') html=hero('이름 같은 사람이 있음. 너 골라.')+
+    '<div class="spick">'+L.matches.map((m,i)=>'<button type="button" class="scard" data-m="'+i+'"><span class="nm">'+esc(m.label)+'</span></button>').join('')+'</div>'+
+    '<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" data-back>이름 다시 쓰기</button></p>';
+  else if(L.step==='pw') html=hero(L.re ? '로그인 풀렸음. 비밀번호만 다시.' : esc(L.pick.label)+', 비밀번호 4자리.')+
+    '<form class="form" id="f-pw" novalidate><label for="in-pw">'+(L.re?esc(L.pick.label)+' · ':'')+'비밀번호</label>'+pw('in-pw','current-password')+
+    '<p class="note">트래커 비밀번호랑 같음. 처음이면 0000.</p>'+err+
+    '<button class="btn primary wide" type="submit">로그인</button></form>'+
+    '<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" data-back>'+(L.re?'다른 사람으로 로그인':'나 아님')+'</button></p>';
+  else if(L.step==='change') html=hero('처음이니까 비밀번호부터 바꿔.')+
+    '<form class="form" id="f-change" novalidate><label for="in-new">새 비밀번호 (숫자 4자리)</label>'+pw('in-new','new-password')+
+    '<label for="in-new2">한 번 더</label>'+pw('in-new2','new-password')+
+    '<p class="note">트래커 비밀번호도 같이 바뀜. 잊어버리면 선생님한테 말하기.</p>'+err+
+    '<button class="btn primary wide" type="submit">저장</button></form>';
+  app.innerHTML=html; window.scrollTo(0,0);
+  const first=app.querySelector('input'); if(first) first.focus();
+  const g=document.getElementById('guest'); if(g) g.onclick=()=>{ guest=true; resetL(); useStore(); renderPick(); };
+  app.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{ if(L.re) return logout(); const nm=L.name; resetL(); L.name=nm; renderLogin('name'); });
+  app.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ L.pick=L.matches[+b.dataset.m]; L.err=''; renderLogin('pw'); });
+  const f=app.querySelector('form'); if(f) f.onsubmit=onLoginSubmit;
+}
+function onLoginSubmit(ev){
+  ev.preventDefault();
+  const f=ev.target; if(f.dataset.busy) return;
+  const val = id => (document.getElementById(id)||{}).value || '';
+  const fail = m => { L.err=m; renderLogin(); };
+  const busy = () => { f.dataset.busy='1'; const b=f.querySelector('button[type="submit"]'); if(b){ b.disabled=true; b.textContent='확인 중…'; } };
+  if(f.id==='f-name'){
+    const nm=val('in-name').trim(); L.name=nm;
+    if(!nm) return fail('이름부터 써.');
+    busy();
+    api('lookup', {name:nm}).then(r=>{
+      if(!r.ok) return fail(r.error);
+      L.err=''; L.matches=r.matches||[];
+      if(L.matches.length===1){ L.pick=L.matches[0]; renderLogin('pw'); } else renderLogin('pick');
+    });
+  } else if(f.id==='f-pw'){
+    const pw=val('in-pw');
+    if(!/^\d{4}$/.test(pw)) return fail('숫자 4자리.');
+    busy();
+    const id=L.pick.id;
+    api('orthLogin', {id, pw})
+      .then(r=> noServer(r) ? api('login', {id, pw}).then(x=>Object.assign(x, {noOrth:true})) : r)
+      .then(r=>{
+        if(!r.ok) return fail(r.error);
+        L.err=''; L.tok=r.token;
+        if(r.me.mustChange) return renderLogin('change');
+        enter(r);
+      });
+  } else if(f.id==='f-change'){
+    const a=val('in-new'), b=val('in-new2');
+    if(!/^\d{4}$/.test(a)) return fail('숫자 4자리로.');
+    if(a!==b) return fail('두 번 쓴 게 서로 다름.');
+    busy();
+    api('orthChangePw', {token:L.tok, newPw:a})
+      .then(r=> noServer(r) ? api('changePw', {token:L.tok, newPw:a}).then(x=>Object.assign(x, {noOrth:true})) : r)
+      .then(r=>{
+        if(!r.ok){ if(authErr(r)){ const nm=L.name; resetL(); L.name=nm; return fail('시간이 너무 지났음. 처음부터 다시.'); } return fail(r.error); }
+        r.token=L.tok; enter(r);
+      });
+  }
+}
+function enter(r){
+  setAuth(r.otoken || r.token, r.me);
+  // 트래커가 로그인 안 된 폰이면 트래커도 같이 로그인(트래커 쪽은 6시간 유지)
+  if(r.token && !lsGet('clinic.token')){ lsSet('clinic.token', r.token); lsSet('clinic.role', 'student'); auth.tt=r.token; lsSet(AKEY, JSON.stringify(auth)); }
+  resetL(); guest=false; sess=null;
+  if(r.orth){ applyOrth(r.orth); go('practice'); flush(); }
+  else { srv.state = r.noOrth ? 'noserver' : 'loading'; go('practice'); if(!r.noOrth) refresh(false); }
+}
+function relogin(){
+  if(!auth) return renderLogin('name');
+  resetL(); L.re=true; L.name=auth.me.name; L.pick={id:auth.me.id, label:auth.me.name};
+  renderLogin('pw');
+}
+function logout(){
+  if(auth){
+    if(API && auth.token && auth.token[0]==='o') api('orthLogout', {token:auth.token});
+    if(auth.tt && lsGet('clinic.token')===auth.tt){ lsSet('clinic.token', null); lsSet('clinic.role', null); }
+  }
+  auth=null; lsSet(AKEY, null); srv={state:'', board:null}; guest=false; sess=null;
+  useStore(); resetL(); renderLogin('name');
 }
 
 /* ---------- 홈 */
@@ -247,42 +480,84 @@ function chips(list, sel, attr, multi){
     return '<button type="button" class="chip" data-'+attr+'="'+esc(id)+'" aria-pressed="'+on+'">'+esc(lab)+'</button>';
   }).join('')+'</div>';
 }
-function setTabs(show){ document.querySelector('.tabs').hidden = !show; }
 function renderPick(){
-  setTabs(false);
+  view='pick'; setTabs(false);
   const nArts = D.arts.length;
   app.innerHTML =
-   '<div class="hero"><img src="char.webp" alt="" width="76" height="95"><div class="bubble">다니는 학교부터 골라.</div></div>'+
+   hero('다니는 학교부터 골라.')+
    '<div class="spick">'+SCHOOLS.map(sc=>{ const cur = sc===store.school;
      return '<button type="button" class="scard'+(cur?' cur':'')+'" data-s="'+esc0(sc)+'"><span class="nm">'+esc(sc)+(cur?'<span class="badge">지금 선택됨</span>':'')+'</span>'+
        '<span class="ds">공통 조항 '+nArts+'개 · 학교 프린트 '+(SCH[sc]?esc(SCH[sc].title||'있음'):'준비 중')+'</span></button>'; }).join('')+'</div>'+
-   (store.school?'<p class="note" style="text-align:center;margin-top:14px">학교를 바꿔도 지금까지 푼 기록은 그대로 남음.</p>':'');
+   (store.school?'<p class="note" style="text-align:center;margin-top:14px">학교를 바꿔도 지금까지 푼 기록은 그대로 남음.</p>':'')+
+   (API?'<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" id="tologin">로그인하기</button></p>':'');
   app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ store.school=b.dataset.s; save(); go('practice'); });
+  const tl=document.getElementById('tologin'); if(tl) tl.onclick=()=>{ guest=false; renderLogin('name'); };
+}
+function statsHTML(){
+  return '<div class="stats"><div class="stat"><b>'+todayCount()+'</b><span>오늘 맞힌 문제</span></div><div class="stat"><b>'+store.total+'</b><span>누적 정답</span></div><div class="stat"><b>'+Object.keys(store.wrong).length+'</b><span>오답 노트</span></div></div>';
+}
+function rankHTML(b, all){
+  if(!b.top.length) return '<div class="rank-msg">아직 아무도 없음. 하나만 맞혀도 1위.</div>';
+  const row = g => '<div class="r'+(g.r<=3?' top':'')+(g.me?' me':'')+'"><span class="no">'+g.r+'위</span><span class="nm">'+
+    g.n.map(x=>'<span>'+esc(x[0])+(all && x[1] ? '<small>'+esc(x[1])+'</small>' : '')+'</span>').join(' <i class="sep">·</i> ')+
+    (g.more?' <i class="sep">외 '+g.more+'명</i>':'')+'</span><span class="d">'+g.d+'개</span></div>';
+  let rows=b.top.map(row).join('');
+  if(b.mine) rows+='<div class="gap">⋯</div>'+row(b.mine);
+  const me=b.me; let msg;
+  if(me){
+    if(me.up) msg=me.up.r+'위까지 '+me.up.gap+'개';
+    else if(me.tied>1) msg='공동 1위 · 하나만 더 맞히면 단독 1위';
+    else if(me.lead) msg='2위보다 '+me.lead+'개 앞섬';
+    else msg='1위 · 아직 혼자 함';
+  } else msg = store.bs.per==='week' ? '이번 주엔 아직 0개 · 하나만 맞혀도 순위에 뜸' : '하나만 맞혀도 순위에 뜸';
+  return '<div class="rank">'+rows+'</div><div class="rank-msg go">'+msg+'</div>';
+}
+function boardHTML(){
+  if(!auth) return '<div class="panel"><p class="note" style="margin:0">'+
+    (API?'로그인하면 학교별·전체 순위표에 올라감. <button type="button" class="linkbtn" id="tologin">로그인하기</button>':'지금 기록은 이 폰에만 저장.')+
+    '</p>'+statsHTML()+'</div>';
+  const bs=store.bs, sc = bs.sc==='all' ? 'all' : 'school', per = bs.per==='total' ? 'total' : 'week';
+  const b = srv.board && srv.board[sc] ? srv.board[sc][per] : null;
+  let body;
+  if(srv.state==='relogin') body='<div class="rank-msg go">로그인 풀렸음. <button type="button" class="linkbtn" id="relog">다시 로그인</button>해야 기록이 순위에 올라감.</div>';
+  else if(srv.state==='noserver') body='<div class="rank-msg">순위표는 아직 준비 중. 푼 기록은 이 폰에 모아 뒀다가 열리면 올라감.</div>';
+  else if(!b) body='<div class="rank-msg">'+(srv.state==='neterr'?'순위를 못 불러옴 · 인터넷 연결 확인':'순위 불러오는 중…')+'</div>';
+  else body=rankHTML(b, sc==='all');
+  return '<div class="panel"><div class="seg">'+
+    chips([{id:'school', label:store.school}, {id:'all', label:'전체'}], sc, 'sc', false)+
+    chips([{id:'week', label:'이번 주'}, {id:'total', label:'누적'}], per, 'per', false)+'</div>'+
+    body+'<p class="note">맞힌 문제 수 · 같은 문제는 하루 한 번만 셈 · 이번 주는 월요일에 새로</p>'+statsHTML()+'</div>';
 }
 function renderHome(){
   if(!store.school) return renderPick();
-  setTabs(true);
+  view='home'; setTabs(true);
   const arts = allowedArts(store.rng), pool = buildPool(store.type, arts);
   const schNote = !SCH[store.school] ? '<p class="note">'+esc(store.school)+' 프린트 범위는 아직 없음. 지금은 공통 조항으로 연습.</p>' : '';
   const wrongN = Object.keys(store.wrong).length;
+  const who = auth
+    ? '<p class="schoolrow"><b>'+esc(auth.me.name)+'</b> · '+esc(store.school)+' 범위 · <button type="button" class="linkbtn" id="out">로그아웃</button></p>'
+    : '<p class="schoolrow"><b>'+esc(store.school)+'</b> 범위 · <button type="button" class="linkbtn" id="chs">학교 바꾸기</button></p>';
   app.innerHTML =
-   '<div class="hero"><img src="char.webp" alt="" width="76" height="95"><div class="bubble">느낌으로 고르지 말고 조항으로 골라.</div></div>'+
-   '<p class="schoolrow"><b>'+esc(store.school)+'</b> 범위 · <button type="button" class="linkbtn" id="chs">학교 바꾸기</button></p>'+schNote+
+   hero('느낌으로 고르지 말고 조항으로 골라.')+who+schNote+
    '<h2 class="sec">범위</h2>'+chips(RANGES, store.rng, 'rng', true)+
    '<h2 class="sec">유형</h2>'+chips(TYPES, store.type, 'type', false)+
    '<h2 class="sec">한 번에 풀 문제</h2>'+chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false)+
    '<p class="note">이 범위 문제 '+pool.length+'개 · 틀린 것과 안 푼 것부터 나옴</p>'+
    '<button type="button" class="btn primary wide" id="start"'+(pool.length?'':' disabled')+'>시작</button>'+
    (wrongN?'<p class="note" style="text-align:center"><button type="button" class="linkbtn" id="towrong">오답만 풀기 ('+wrongN+')</button></p>':'')+
-   '<h2 class="sec">순위표</h2><div class="panel"><div class="note" style="margin:0">로그인 연결하면 학교별·전체 순위가 여기 뜸. 지금 기록은 이 폰에만 저장.</div>'+
-   '<div class="stats"><div class="stat"><b>'+todayCount()+'</b><span>오늘 맞힌 문제</span></div><div class="stat"><b>'+store.total+'</b><span>누적 정답</span></div><div class="stat"><b>'+wrongN+'</b><span>오답 노트</span></div></div></div>';
-  document.getElementById('chs').onclick=renderPick;
+   '<h2 class="sec">순위표</h2>'+boardHTML();
+  const chs=document.getElementById('chs'); if(chs) chs.onclick=renderPick;
+  const out=document.getElementById('out'); if(out) out.onclick=logout;
+  const tl=document.getElementById('tologin'); if(tl) tl.onclick=()=>{ guest=false; renderLogin('name'); };
+  const rl=document.getElementById('relog'); if(rl) rl.onclick=relogin;
   app.querySelectorAll('[data-rng]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.rng, i=store.rng.indexOf(id);
     if(i>=0){ if(store.rng.length>1) store.rng.splice(i,1); } else store.rng.push(id);
     save(); renderHome(); });
   app.querySelectorAll('[data-type]').forEach(b=>b.onclick=()=>{ store.type=b.dataset.type; save(); renderHome(); });
   app.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{ store.n=+b.dataset.n; save(); renderHome(); });
+  app.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{ store.bs.sc=b.dataset.sc; save(); renderHome(); });
+  app.querySelectorAll('[data-per]').forEach(b=>b.onclick=()=>{ store.bs.per=b.dataset.per; save(); renderHome(); });
   const st=document.getElementById('start'); if(st) st.onclick=()=>startSession(sample(pool, store.n), {from:'home'});
   const tw=document.getElementById('towrong'); if(tw) tw.onclick=startWrong;
 }
@@ -305,12 +580,14 @@ function startArt(n){
   const pool = buildPool(PICKS.some(p=>p.a===n)?'mix':'blank', new Set([n]));
   startSession(sample(pool, Math.min(10,pool.length)), {from:'art', n});
 }
+// 누적 정답은 같은 문제를 하루에 한 번만 셈(서버 순위와 같은 기준)
 function record(q, ok){
   const s = store.st[q.id] || (store.st[q.id]={c:0,w:0});
-  if(ok){ s.c++; store.total++; delete store.wrong[q.id];
+  if(ok){ s.c++; delete store.wrong[q.id];
     if(store.day!==today()){ store.day=today(); store.dayIds=[]; }
-    if(!store.dayIds.includes(q.id)) store.dayIds.push(q.id);
+    if(!store.dayIds.includes(q.id)){ store.dayIds.push(q.id); store.total++; }
   } else { s.w++; store.wrong[q.id]=1; }
+  if(auth) store.pending.push([q.id, ok?1:0]);
   save();
 }
 function sentFilled(p, mode, chosen){
@@ -326,6 +603,7 @@ function whyLine(p){
   return '<div class="why"><b>'+esc('제'+p.a+'항'+partLabel(p))+'</b> · '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>';
 }
 function renderQ(){
+  view='q';
   const q = sess.qs[sess.i], n = sess.qs.length, it=q.it;
   let body='';
   if(q.kind==='pick'){
@@ -389,6 +667,7 @@ function answerBlank(q, val){
 
 /* ---------- 결과 */
 function renderResult(){
+  view='result';
   const n=sess.res.length, c=sess.res.filter(r=>r.ok).length, wrong=sess.res.filter(r=>!r.ok);
   let list='';
   if(wrong.length){
@@ -409,11 +688,12 @@ function renderResult(){
     startSession(sample(buildPool(store.type, allowedArts(store.rng)), store.n), {from:'home'});
   };
   document.getElementById('home2').onclick=()=>{ sess=null; go('practice'); };
+  flush();
 }
 
 /* ---------- 조항 카드 */
 function renderRules(){
-  setTabs(true);
+  view='rules'; setTabs(true);
   const cnt={}; PICKS.forEach(p=>cnt[p.a]=(cnt[p.a]||0)+1); BLANKS.forEach(b=>cnt[b.a]=(cnt[b.a]||0)+1);
   let html='<p class="note" style="margin-top:0">조항 하나씩 펼쳐서 원문 → 핵심 → 예시 순으로. 막히면 아래 선행 문법부터.</p>';
   D.chapters.forEach(([cid, name, no])=>{
@@ -435,7 +715,7 @@ function renderRules(){
 
 /* ---------- 오답 노트 */
 function renderNotes(){
-  setTabs(true);
+  view='notes'; setTabs(true);
   const ids=Object.keys(store.wrong).filter(id=>BYID[id]);
   if(!ids.length){ app.innerHTML='<div class="qkind">오답 노트</div><p class="empty">틀린 문제가 없음. 아직 안 풀었거나, 다 고쳤거나.</p>'; return; }
   const by={}; ids.forEach(id=>{ const a=BYID[id].a; (by[a]=by[a]||[]).push(id); });
@@ -444,15 +724,35 @@ function renderNotes(){
   app.innerHTML='<div class="qkind">오답 노트</div><p class="note" style="margin-top:0">한 번 맞히면 빠짐. 많이 틀린 조항부터.</p>'+
     rows.map(a=>'<div class="nrow"><span class="no">제'+a+'항</span><span><span style="display:block;margin-bottom:4px">'+esc(ART[a]?ART[a].k:'')+'</span><span class="meter"><i style="width:'+(by[a].length/max*100)+'%"></i></span></span><button type="button" class="linkbtn" data-goart="'+a+'">'+by[a].length+'개</button></div>').join('')+
     '<button type="button" class="btn primary wide" id="wr">오답만 풀기 ('+ids.length+')</button>'+
-    '<p class="note" style="text-align:center;margin-top:18px"><button type="button" class="linkbtn" id="reset">이 폰 기록 지우기</button></p>';
+    (auth?'':'<p class="note" style="text-align:center;margin-top:18px"><button type="button" class="linkbtn" id="reset">이 폰 기록 지우기</button></p>');
   document.getElementById('wr').onclick=startWrong;
   app.querySelectorAll('[data-goart]').forEach(b=>b.onclick=()=>{ go('rules'); const d=document.getElementById('a'+b.dataset.goart); if(d){ d.open=true; d.scrollIntoView({block:'start'}); } });
   const rs=document.getElementById('reset'); let armed=false;
-  rs.onclick=()=>{ if(!armed){ armed=true; rs.textContent='한 번 더 누르면 오답·기록 전부 지움'; return; }
+  if(rs) rs.onclick=()=>{ if(!armed){ armed=true; rs.textContent='한 번 더 누르면 오답·기록 전부 지움'; return; }
     store.st={}; store.wrong={}; store.total=0; store.dayIds=[]; save(); renderNotes(); };
 }
 
-renderPick();   // 들어올 때는 항상 학교 고르기부터
+/* ---------- 시작: 로그인돼 있으면 바로 내 학교, 트래커에 로그인돼 있으면 그대로 이어서, 아니면 이름부터 */
+function boot(){
+  useStore();
+  if(!API){ guest=true; return renderPick(); }
+  if(auth){ go('practice'); refresh(true); return; }
+  const tt = lsGet('clinic.role')==='student' ? lsGet('clinic.token') : null;
+  if(tt){
+    renderLogin('wait');
+    api('orthHome', {token:tt}).then(r=>{
+      if(view!=='login' || L.step!=='wait') return;
+      if(r.ok && r.me){
+        if(r.me.mustChange){ L.tok=tt; return renderLogin('change'); }
+        return enter({token:null, otoken:r.otoken||tt, me:r.me, orth:r.orth});
+      }
+      renderLogin('name');
+    });
+    return;
+  }
+  renderLogin('name');
+}
+boot();
 })();
 </script>
 </body>
