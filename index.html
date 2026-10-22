@@ -34,6 +34,7 @@ header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:1
 .brand .heart{color:var(--accent);margin-right:6px}
 .eyebrow{font-size:.75rem;letter-spacing:.08em;color:var(--muted)}
 .tabs{display:flex;gap:14px}
+.tabs[hidden]{display:none}
 .tabs button{background:none;border:0;padding:4px 0;font-size:.92rem;color:var(--muted);border-bottom:2px solid transparent}
 .tabs button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
 
@@ -231,7 +232,7 @@ function prepare(q){
 /* ---------- 화면 전환 */
 let tab = 'practice', sess = null;
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ sess=null; go(b.dataset.tab); });
-document.getElementById('brand').onclick=()=>{ sess=null; go('practice'); };
+document.getElementById('brand').onclick=()=>{ sess=null; renderPick(); window.scrollTo(0,0); };
 function go(t){
   tab=t; document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===t?'page':'false'));
   if(t==='practice') (store.school ? renderHome() : renderPick()); else if(t==='rules') renderRules(); else renderNotes();
@@ -246,7 +247,9 @@ function chips(list, sel, attr, multi){
     return '<button type="button" class="chip" data-'+attr+'="'+esc(id)+'" aria-pressed="'+on+'">'+esc(lab)+'</button>';
   }).join('')+'</div>';
 }
+function setTabs(show){ document.querySelector('.tabs').hidden = !show; }
 function renderPick(){
+  setTabs(false);
   const nArts = D.arts.length;
   app.innerHTML =
    '<div class="hero"><img src="char.webp" alt="" width="76" height="95"><div class="bubble">다니는 학교부터 골라.</div></div>'+
@@ -254,10 +257,11 @@ function renderPick(){
      return '<button type="button" class="scard'+(cur?' cur':'')+'" data-s="'+esc0(sc)+'"><span class="nm">'+esc(sc)+(cur?'<span class="badge">지금 선택됨</span>':'')+'</span>'+
        '<span class="ds">공통 조항 '+nArts+'개 · 학교 프린트 '+(SCH[sc]?esc(SCH[sc].title||'있음'):'준비 중')+'</span></button>'; }).join('')+'</div>'+
    (store.school?'<p class="note" style="text-align:center;margin-top:14px">학교를 바꿔도 지금까지 푼 기록은 그대로 남음.</p>':'');
-  app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ store.school=b.dataset.s; save(); renderHome(); window.scrollTo(0,0); });
+  app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ store.school=b.dataset.s; save(); go('practice'); });
 }
 function renderHome(){
   if(!store.school) return renderPick();
+  setTabs(true);
   const arts = allowedArts(store.rng), pool = buildPool(store.type, arts);
   const schNote = !SCH[store.school] ? '<p class="note">'+esc(store.school)+' 프린트 범위는 아직 없음. 지금은 공통 조항으로 연습.</p>' : '';
   const wrongN = Object.keys(store.wrong).length;
@@ -409,6 +413,7 @@ function renderResult(){
 
 /* ---------- 조항 카드 */
 function renderRules(){
+  setTabs(true);
   const cnt={}; PICKS.forEach(p=>cnt[p.a]=(cnt[p.a]||0)+1); BLANKS.forEach(b=>cnt[b.a]=(cnt[b.a]||0)+1);
   let html='<p class="note" style="margin-top:0">조항 하나씩 펼쳐서 원문 → 핵심 → 예시 순으로. 막히면 아래 선행 문법부터.</p>';
   D.chapters.forEach(([cid, name, no])=>{
@@ -430,6 +435,7 @@ function renderRules(){
 
 /* ---------- 오답 노트 */
 function renderNotes(){
+  setTabs(true);
   const ids=Object.keys(store.wrong).filter(id=>BYID[id]);
   if(!ids.length){ app.innerHTML='<div class="qkind">오답 노트</div><p class="empty">틀린 문제가 없음. 아직 안 풀었거나, 다 고쳤거나.</p>'; return; }
   const by={}; ids.forEach(id=>{ const a=BYID[id].a; (by[a]=by[a]||[]).push(id); });
@@ -446,7 +452,7 @@ function renderNotes(){
     store.st={}; store.wrong={}; store.total=0; store.dayIds=[]; save(); renderNotes(); };
 }
 
-go('practice');
+renderPick();   // 들어올 때는 항상 학교 고르기부터
 })();
 </script>
 </body>
