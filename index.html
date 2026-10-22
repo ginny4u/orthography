@@ -175,7 +175,7 @@ footer{word-break:keep-all;margin-top:44px;padding-top:12px;border-top:1px solid
     </nav>
   </header>
   <main id="app"></main>
-  <footer>조항 원문과 예시는 국립국어원 ‘한글 맞춤법’(2017) 기준입니다. 표준 발음법은 범위에서 제외했습니다. 로그인하면 기록은 내신 트래커 계정에 저장되며, 순위표에는 이름·학교·맞힌 개수만 표시됩니다.</footer>
+  <footer>조항 원문과 예시는 국립국어원 ‘한글 맞춤법’ 기준입니다.</footer>
 </div>
 <script src="data.js"></script>
 <script>
@@ -388,8 +388,7 @@ function renderLogin(step){
   else if(L.step==='name') html=hero('이름을 정확히 입력해 주세요.')+
     '<form class="form" id="f-name" novalidate><label for="in-name">이름</label>'+
     '<input id="in-name" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc0(L.name)+'" placeholder="홍길동">'+err+
-    '<button class="btn primary wide" type="submit">다음</button></form>'+
-    '<p class="note" style="text-align:center;margin-top:28px"><button type="button" class="linkbtn" id="guest">로그인 없이 둘러보기</button><br>기록은 이 기기에만 저장되고 순위표에는 올라가지 않습니다.</p>';
+    '<button class="btn primary wide" type="submit">다음</button></form>';
   else if(L.step==='pick') html=hero('같은 이름의 학생이 있습니다. 본인을 선택해 주세요.')+
     '<div class="spick">'+L.matches.map((m,i)=>'<button type="button" class="scard" data-m="'+i+'"><span class="nm">'+esc(m.label)+'</span></button>').join('')+'</div>'+
     '<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" data-back>이름 다시 입력하기</button></p>';
@@ -405,7 +404,6 @@ function renderLogin(step){
     '<button class="btn primary wide" type="submit">저장</button></form>';
   app.innerHTML=html; window.scrollTo(0,0);
   const first=app.querySelector('input'); if(first) first.focus();
-  const g=document.getElementById('guest'); if(g) g.onclick=()=>{ guest=true; resetL(); useStore(); renderPick(); };
   app.querySelectorAll('[data-back]').forEach(b=>b.onclick=()=>{ if(L.re) return logout(); const nm=L.name; resetL(); L.name=nm; renderLogin('name'); });
   app.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ L.pick=L.matches[+b.dataset.m]; L.err=''; renderLogin('pw'); });
   const f=app.querySelector('form'); if(f) f.onsubmit=onLoginSubmit;
@@ -488,10 +486,8 @@ function renderPick(){
    '<div class="spick">'+SCHOOLS.map(sc=>{ const cur = sc===store.school;
      return '<button type="button" class="scard'+(cur?' cur':'')+'" data-s="'+esc0(sc)+'"><span class="nm">'+esc(sc)+(cur?'<span class="badge">지금 선택됨</span>':'')+'</span>'+
        '<span class="ds">'+PARTS(sc).join(' · ')+'</span></button>'; }).join('')+'</div>'+
-   (store.school?'<p class="note" style="text-align:center;margin-top:14px">학교를 바꿔도 지금까지 푼 기록은 그대로 남습니다.</p>':'')+
-   (API?'<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" id="tologin">로그인하기</button></p>':'');
+   (store.school?'<p class="note" style="text-align:center;margin-top:14px">학교를 바꿔도 지금까지 푼 기록은 그대로 남습니다.</p>':'');
   app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ store.school=b.dataset.s; save(); go('practice'); });
-  const tl=document.getElementById('tologin'); if(tl) tl.onclick=()=>{ guest=false; renderLogin('name'); };
 }
 function statsHTML(){
   return '<div class="stats"><div class="stat"><b>'+todayCount()+'</b><span>오늘 맞힌 문제</span></div><div class="stat"><b>'+store.total+'</b><span>누적 정답</span></div><div class="stat"><b>'+Object.keys(store.wrong).length+'</b><span>오답 노트</span></div></div>';
@@ -513,9 +509,7 @@ function rankHTML(b, all){
   return '<div class="rank">'+rows+'</div><div class="rank-msg go">'+msg+'</div>';
 }
 function boardHTML(){
-  if(!auth) return '<div class="panel"><p class="note" style="margin:0">'+
-    (API?'로그인하면 학교별·전체 순위표에 올라갑니다. <button type="button" class="linkbtn" id="tologin">로그인하기</button>':'기록은 이 기기에만 저장됩니다.')+
-    '</p>'+statsHTML()+'</div>';
+  if(!auth) return '<div class="panel">'+statsHTML()+'</div>';
   const bs=store.bs, sc = bs.sc==='all' ? 'all' : 'school', per = bs.per==='total' ? 'total' : 'week';
   const b = srv.board && srv.board[sc] ? srv.board[sc][per] : null;
   let body;
@@ -548,7 +542,6 @@ function renderHome(){
    '<h2 class="sec">순위표</h2>'+boardHTML();
   const chs=document.getElementById('chs'); if(chs) chs.onclick=renderPick;
   const out=document.getElementById('out'); if(out) out.onclick=logout;
-  const tl=document.getElementById('tologin'); if(tl) tl.onclick=()=>{ guest=false; renderLogin('name'); };
   const rl=document.getElementById('relog'); if(rl) rl.onclick=relogin;
   app.querySelectorAll('[data-rng]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.rng, i=store.rng.indexOf(id);
@@ -723,13 +716,9 @@ function renderNotes(){
   const max=Math.max(...rows.map(a=>by[a].length));
   app.innerHTML='<div class="qkind">오답 노트</div><p class="note" style="margin-top:0">다시 맞히면 오답 노트에서 빠집니다. 많이 틀린 조항부터 보여 줍니다.</p>'+
     rows.map(a=>'<div class="nrow"><span class="no">제'+a+'항</span><span><span style="display:block;margin-bottom:4px">'+esc(ART[a]?ART[a].k:'')+'</span><span class="meter"><i style="width:'+(by[a].length/max*100)+'%"></i></span></span><button type="button" class="linkbtn" data-goart="'+a+'">'+by[a].length+'개</button></div>').join('')+
-    '<button type="button" class="btn primary wide" id="wr">오답만 풀기 ('+ids.length+')</button>'+
-    (auth?'':'<p class="note" style="text-align:center;margin-top:18px"><button type="button" class="linkbtn" id="reset">이 기기 기록 지우기</button></p>');
+    '<button type="button" class="btn primary wide" id="wr">오답만 풀기 ('+ids.length+')</button>';
   document.getElementById('wr').onclick=startWrong;
   app.querySelectorAll('[data-goart]').forEach(b=>b.onclick=()=>{ go('rules'); const d=document.getElementById('a'+b.dataset.goart); if(d){ d.open=true; d.scrollIntoView({block:'start'}); } });
-  const rs=document.getElementById('reset'); let armed=false;
-  if(rs) rs.onclick=()=>{ if(!armed){ armed=true; rs.textContent='한 번 더 누르면 오답과 기록이 모두 지워집니다'; return; }
-    store.st={}; store.wrong={}; store.total=0; store.dayIds=[]; save(); renderNotes(); };
 }
 
 /* ---------- 시작: 로그인돼 있으면 바로 내 학교, 트래커에 로그인돼 있으면 그대로 이어서, 아니면 이름부터 */
