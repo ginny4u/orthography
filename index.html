@@ -124,6 +124,15 @@ details.art[open] summary .no{color:var(--accent)}
 .nrow .meter{display:block;height:6px;background:var(--plate);border-radius:3px;overflow:hidden}
 .nrow .meter i{display:block;height:100%;background:var(--accent)}
 .empty{color:var(--muted);font-size:.92rem;padding:18px 0}
+/* 학교 고르기 */
+.spick{display:grid;gap:10px;margin-top:18px}
+.scard{display:block;width:100%;text-align:left;background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:14px 16px}
+.scard .nm{display:flex;align-items:center;gap:8px;font-family:var(--serif);font-weight:700;font-size:1.1rem}
+.scard .ds{display:block;font-size:.84rem;color:var(--muted);margin-top:2px}
+.scard.cur{border-color:var(--accent)}
+.badge{font-family:var(--sans);font-size:.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 8px}
+.schoolrow{font-size:.92rem;margin:4px 0 0}
+.schoolrow b{font-family:var(--serif)}
 footer{margin-top:44px;padding-top:12px;border-top:1px solid var(--rule);font-size:.75rem;color:var(--muted)}
 </style>
 </head>
@@ -152,7 +161,7 @@ const app = document.getElementById('app');
 if(!D){ app.innerHTML='<p class="empty">문제 파일을 못 불러옴. 새로고침해 봐.</p>'; return; }
 
 /* ---------- 기본 데이터 */
-const SCHOOLS = ['공통','공항고','동양고','명덕고','한서고','경복여고'];
+const SCHOOLS = ['공항고','동양고','명덕고','한서고','경복여고'];
 const SCH = window.ORTH_SCHOOL || {};               // 학교별 프린트 범위(추가 예정)
 const ART = {}; D.arts.forEach(a=>ART[a.n]=a);
 const RANGES = [
@@ -173,8 +182,9 @@ const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p;}); BLANKS.for
 
 /* ---------- 저장 */
 const KEY='orth.v1';
-let store = {school:'공통', rng:['s','f','w','e'], type:'pick', n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0};
+let store = {school:null, rng:['s','f','w','e'], type:'pick', n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0};
 try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s) store=Object.assign(store,s); }catch(e){}
+if(!SCHOOLS.includes(store.school)) store.school=null;
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function todayCount(){ return store.day===today() ? store.dayIds.length : 0; }
@@ -224,7 +234,7 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ sess=null; 
 document.getElementById('brand').onclick=()=>{ sess=null; go('practice'); };
 function go(t){
   tab=t; document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===t?'page':'false'));
-  if(t==='practice') renderHome(); else if(t==='rules') renderRules(); else renderNotes();
+  if(t==='practice') (store.school ? renderHome() : renderPick()); else if(t==='rules') renderRules(); else renderNotes();
   window.scrollTo(0,0);
 }
 
@@ -236,13 +246,24 @@ function chips(list, sel, attr, multi){
     return '<button type="button" class="chip" data-'+attr+'="'+esc(id)+'" aria-pressed="'+on+'">'+esc(lab)+'</button>';
   }).join('')+'</div>';
 }
+function renderPick(){
+  const nArts = D.arts.length;
+  app.innerHTML =
+   '<div class="hero"><img src="char.webp" alt="" width="76" height="95"><div class="bubble">다니는 학교부터 골라.</div></div>'+
+   '<div class="spick">'+SCHOOLS.map(sc=>{ const cur = sc===store.school;
+     return '<button type="button" class="scard'+(cur?' cur':'')+'" data-s="'+esc0(sc)+'"><span class="nm">'+esc(sc)+(cur?'<span class="badge">지금 선택됨</span>':'')+'</span>'+
+       '<span class="ds">공통 조항 '+nArts+'개 · 학교 프린트 '+(SCH[sc]?esc(SCH[sc].title||'있음'):'준비 중')+'</span></button>'; }).join('')+'</div>'+
+   (store.school?'<p class="note" style="text-align:center;margin-top:14px">학교를 바꿔도 지금까지 푼 기록은 그대로 남음.</p>':'');
+  app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ store.school=b.dataset.s; save(); renderHome(); window.scrollTo(0,0); });
+}
 function renderHome(){
+  if(!store.school) return renderPick();
   const arts = allowedArts(store.rng), pool = buildPool(store.type, arts);
-  const schNote = store.school!=='공통' && !SCH[store.school] ? '<p class="note">'+esc(store.school)+' 프린트 범위는 아직 없음. 지금은 공통 범위로 연습.</p>' : '';
+  const schNote = !SCH[store.school] ? '<p class="note">'+esc(store.school)+' 프린트 범위는 아직 없음. 지금은 공통 조항으로 연습.</p>' : '';
   const wrongN = Object.keys(store.wrong).length;
   app.innerHTML =
    '<div class="hero"><img src="char.webp" alt="" width="76" height="95"><div class="bubble">느낌으로 고르지 말고 조항으로 골라.</div></div>'+
-   '<h2 class="sec">학교</h2>'+chips(SCHOOLS, store.school, 'sch', false)+schNote+
+   '<p class="schoolrow"><b>'+esc(store.school)+'</b> 범위 · <button type="button" class="linkbtn" id="chs">학교 바꾸기</button></p>'+schNote+
    '<h2 class="sec">범위</h2>'+chips(RANGES, store.rng, 'rng', true)+
    '<h2 class="sec">유형</h2>'+chips(TYPES, store.type, 'type', false)+
    '<h2 class="sec">한 번에 풀 문제</h2>'+chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false)+
@@ -251,7 +272,7 @@ function renderHome(){
    (wrongN?'<p class="note" style="text-align:center"><button type="button" class="linkbtn" id="towrong">오답만 풀기 ('+wrongN+')</button></p>':'')+
    '<h2 class="sec">순위표</h2><div class="panel"><div class="note" style="margin:0">로그인 연결하면 학교별·전체 순위가 여기 뜸. 지금 기록은 이 폰에만 저장.</div>'+
    '<div class="stats"><div class="stat"><b>'+todayCount()+'</b><span>오늘 맞힌 문제</span></div><div class="stat"><b>'+store.total+'</b><span>누적 정답</span></div><div class="stat"><b>'+wrongN+'</b><span>오답 노트</span></div></div></div>';
-  app.querySelectorAll('[data-sch]').forEach(b=>b.onclick=()=>{ store.school=b.dataset.sch; save(); renderHome(); });
+  document.getElementById('chs').onclick=renderPick;
   app.querySelectorAll('[data-rng]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.rng, i=store.rng.indexOf(id);
     if(i>=0){ if(store.rng.length>1) store.rng.splice(i,1); } else store.rng.push(id);
