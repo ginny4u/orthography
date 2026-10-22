@@ -190,7 +190,8 @@ const API = 'https://script.google.com/macros/s/AKfycbxN_zUg62UVzI-xkiB_-CxSnZND
 
 /* ---------- 기본 데이터 */
 const SCHOOLS = ['공항고','동양고','명덕고','한서고','경복여고'];
-const SCH = window.ORTH_SCHOOL || {};               // 학교별 프린트 범위(추가 예정)
+const SCH = window.ORTH_SCHOOL || {};               // 학교별 교과서·프린트 범위(추가 예정)
+const PARTS = sc => ['기본 개념','교과서','프린트'].concat(sc==='경복여고'||sc==='명덕고' ? ['올림포스'] : []);
 const ART = {}; D.arts.forEach(a=>ART[a.n]=a);
 const RANGES = [
   {id:'s', label:'총칙·소리', ch:['c1','c3']},
@@ -482,12 +483,11 @@ function chips(list, sel, attr, multi){
 }
 function renderPick(){
   view='pick'; setTabs(false);
-  const nArts = D.arts.length;
   app.innerHTML =
    hero('다니는 학교를 선택해 주세요.')+
    '<div class="spick">'+SCHOOLS.map(sc=>{ const cur = sc===store.school;
      return '<button type="button" class="scard'+(cur?' cur':'')+'" data-s="'+esc0(sc)+'"><span class="nm">'+esc(sc)+(cur?'<span class="badge">지금 선택됨</span>':'')+'</span>'+
-       '<span class="ds">공통 조항 '+nArts+'개 · 학교 프린트 '+(SCH[sc]?esc(SCH[sc].title||'있음'):'준비 중')+'</span></button>'; }).join('')+'</div>'+
+       '<span class="ds">'+PARTS(sc).join(' · ')+'</span></button>'; }).join('')+'</div>'+
    (store.school?'<p class="note" style="text-align:center;margin-top:14px">학교를 바꿔도 지금까지 푼 기록은 그대로 남습니다.</p>':'')+
    (API?'<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" id="tologin">로그인하기</button></p>':'');
   app.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{ store.school=b.dataset.s; save(); go('practice'); });
@@ -532,7 +532,7 @@ function renderHome(){
   if(!store.school) return renderPick();
   view='home'; setTabs(true);
   const arts = allowedArts(store.rng), pool = buildPool(store.type, arts);
-  const schNote = !SCH[store.school] ? '<p class="note">'+esc(store.school)+' 프린트 범위는 아직 준비 중입니다. 지금은 공통 조항으로 연습합니다.</p>' : '';
+  const schNote = !SCH[store.school] ? '<p class="note">'+esc(store.school)+' '+PARTS(store.school).slice(1).join('·')+' 범위는 아직 준비 중입니다. 지금은 기본 개념으로 연습합니다.</p>' : '';
   const wrongN = Object.keys(store.wrong).length;
   const who = auth
     ? '<p class="schoolrow"><b>'+esc(auth.me.name)+'</b> · '+esc(store.school)+' 범위 · <button type="button" class="linkbtn" id="out">로그아웃</button></p>'
