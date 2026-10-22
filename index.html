@@ -7,13 +7,13 @@
 <meta name="description" content="고1 한글 맞춤법 반복 연습 — 조항 카드, 바른 표기, 근거 조항, 조항 빈칸">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Jua&display=swap" rel="stylesheet">
 <style>
-/* 한 줄 폭(최대 640px) 단일 지면. 흰 원고 + 빨간 교정 부호 하나. 헤어라인, 점토색 포인트. */
+/* 한 줄 폭(최대 640px) 단일 지면. 제목·문장은 주아체, 안내는 IBM Plex Sans KR. 헤어라인, 점토색 포인트. */
 :root{
   --bg:#f6f6f4; --paper:#ffffff; --ink:#1c1b1a; --muted:#6b6863; --rule:#dcd9d4;
   --accent:#b0503a; --accent-soft:#f3e3dd; --plate:#ece8e1; --good:#2f6b4f; --good-soft:#e2efe8;
-  --serif:"Noto Serif KR","Nanum Myeongjo","Batang",serif;
+  --jua:"Jua","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
@@ -24,14 +24,14 @@
   --accent:#de7d62; --accent-soft:#3a2520; --plate:#2a2826; --good:#6fbf95; --good-soft:#1d3329; color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;margin:0}
+body{font-synthesis:none;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;margin:0}
 .wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:20px 56px}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:1px solid var(--ink);padding-bottom:10px;margin-bottom:22px}
-.brand{font-family:var(--serif);font-weight:700;font-size:1.3rem;letter-spacing:-.01em;margin:0;cursor:pointer;white-space:nowrap}
-.brand .heart{color:var(--accent);margin-right:6px}
+.brand{font-family:var(--jua);font-size:1.3rem;letter-spacing:-.01em;margin:0;cursor:pointer;white-space:nowrap}
+.brand .heart{color:var(--accent);margin-right:6px;font-family:var(--sans)}
 .eyebrow{font-size:.75rem;letter-spacing:.08em;color:var(--muted)}
 .tabs{display:flex;gap:14px}
 .tabs[hidden]{display:none}
@@ -56,7 +56,7 @@ h2.sec{font-size:.78rem;letter-spacing:.1em;color:var(--muted);font-weight:600;m
 
 .panel{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:14px 16px}
 .stats{display:flex;gap:22px;margin-top:10px}
-.stat b{display:block;font-family:var(--serif);font-size:1.35rem;line-height:1.2}
+.stat b{display:block;font-family:var(--jua);font-size:1.35rem;line-height:1.2}
 .stat span{font-size:.78rem;color:var(--muted)}
 
 /* 문제 */
@@ -64,7 +64,7 @@ h2.sec{font-size:.78rem;letter-spacing:.1em;color:var(--muted);font-weight:600;m
 .bar{height:2px;background:var(--rule);margin:8px 0 20px}
 .bar i{display:block;height:100%;background:var(--accent);transition:width .25s}
 .qkind{font-size:.75rem;letter-spacing:.1em;color:var(--muted);font-weight:600;margin-bottom:10px}
-.qsent{font-family:var(--serif);font-size:1.22rem;line-height:2.3;margin:0 0 18px;word-break:keep-all;overflow-wrap:anywhere}
+.qsent{font-family:var(--jua);font-size:1.22rem;line-height:2.3;margin:0 0 18px;word-break:keep-all;overflow-wrap:anywhere}
 .slot{display:inline-block;min-width:3.4em;border-bottom:2px solid var(--accent);text-align:center;line-height:1.4;padding:0 2px}
 .slot.on{border-bottom-color:var(--good);color:var(--good);font-weight:700}
 .fix{position:relative;display:inline-block;line-height:1.4}
@@ -74,12 +74,12 @@ h2.sec{font-size:.78rem;letter-spacing:.1em;color:var(--muted);font-weight:600;m
 .opts{display:grid;gap:10px}
 .opts.two{grid-template-columns:1fr 1fr}
 .opt{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:13px 14px;text-align:left;font-size:1.02rem;line-height:1.45}
-.opts.two .opt{text-align:center;font-family:var(--serif);font-size:1.1rem}
+.opts.two .opt{text-align:center;font-family:var(--jua);font-size:1.1rem}
 .opt small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px;font-family:var(--sans)}
 .opt.ok{border-color:var(--good);background:var(--good-soft)}
 .opt.ng{border-color:var(--accent);background:var(--accent-soft);text-decoration:line-through;text-decoration-color:var(--accent)}
 .opt:disabled{cursor:default}
-.blankrow{font-family:var(--serif);font-size:1.08rem;line-height:2.1;word-break:keep-all;overflow-wrap:anywhere}
+.blankrow{font-family:var(--jua);font-size:1.08rem;line-height:2.1;word-break:keep-all;overflow-wrap:anywhere}
 .blankrow input{font:inherit;width:7.5em;max-width:100%;border:0;border-bottom:2px solid var(--accent);background:transparent;color:var(--ink);text-align:center;padding:0 2px;border-radius:0}
 .fb{margin-top:18px;min-height:1.6em}
 .fb .okword{color:var(--good);font-weight:700;font-size:1.05rem}
@@ -88,30 +88,30 @@ h2.sec{font-size:.78rem;letter-spacing:.1em;color:var(--muted);font-weight:600;m
 .next{margin-top:20px}
 
 /* 결과 */
-.score{font-family:var(--serif);font-size:2.2rem;font-weight:700;margin:4px 0 0}
+.score{font-family:var(--jua);font-size:2.2rem;margin:4px 0 0}
 .score span{font-size:1rem;color:var(--muted);font-weight:500}
 .wlist{list-style:none;padding:0;margin:0}
 .wlist li{border-top:1px solid var(--rule);padding:12px 0}
-.wlist .w1{font-family:var(--serif);font-size:1.02rem;line-height:2.1}
+.wlist .w1{font-family:var(--jua);font-size:1.02rem;line-height:2.1}
 .wlist .w2{font-size:.84rem;color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
 
 /* 조항 카드 */
-.chap{font-family:var(--serif);font-size:1.05rem;font-weight:700;margin:30px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+.chap{font-family:var(--jua);font-size:1.05rem;margin:30px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
 .chap span{font-family:var(--sans);font-size:.78rem;color:var(--muted);font-weight:500;margin-right:6px}
 details.art{border-bottom:1px solid var(--rule)}
 details.art summary{list-style:none;display:flex;align-items:baseline;gap:10px;padding:12px 2px;cursor:pointer}
 details.art summary::-webkit-details-marker{display:none}
-details.art summary .no{font-family:var(--serif);font-weight:700;min-width:3.4em}
+details.art summary .no{font-family:var(--jua);min-width:3.4em}
 details.art summary .k{flex:1}
 details.art summary .cnt{font-size:.78rem;color:var(--muted)}
 details.art[open] summary .no{color:var(--accent)}
 .artbody{padding:2px 2px 18px}
-.law{font-family:var(--serif);background:var(--plate);border-radius:8px;padding:12px 14px;margin:0 0 10px;font-size:.98rem;line-height:1.75}
+.law{font-family:var(--jua);background:var(--plate);border-radius:8px;padding:12px 14px;margin:0 0 10px;font-size:.98rem;line-height:1.75}
 .law .sub{display:block;margin-top:6px;font-size:.9rem}
 .law .sub b{color:var(--accent);font-weight:700;margin-right:4px}
 .core{font-size:.95rem;margin:12px 0}
-.core::before{content:"♥";color:var(--accent);margin-right:6px}
+.core::before{content:"\2665\FE0E";font-family:var(--sans);color:var(--accent);margin-right:6px}
 .exg{margin:10px 0}
 .exg .lab{font-size:.78rem;color:var(--muted);margin-bottom:4px}
 .ex{display:flex;flex-wrap:wrap;gap:6px}
@@ -121,19 +121,19 @@ details.art[open] summary .no{color:var(--accent)}
 
 /* 오답 */
 .nrow{display:grid;grid-template-columns:3.6em 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule);font-size:.92rem}
-.nrow .no{font-family:var(--serif);font-weight:700}
+.nrow .no{font-family:var(--jua)}
 .nrow .meter{display:block;height:6px;background:var(--plate);border-radius:3px;overflow:hidden}
 .nrow .meter i{display:block;height:100%;background:var(--accent)}
 .empty{color:var(--muted);font-size:.92rem;padding:18px 0}
 /* 학교 고르기 */
 .spick{display:grid;gap:10px;margin-top:18px}
 .scard{display:block;width:100%;text-align:left;background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:14px 16px}
-.scard .nm{display:flex;align-items:center;gap:8px;font-family:var(--serif);font-weight:700;font-size:1.1rem}
+.scard .nm{display:flex;align-items:center;gap:8px;font-family:var(--jua);font-size:1.1rem}
 .scard .ds{display:block;font-size:.84rem;color:var(--muted);margin-top:2px}
 .scard.cur{border-color:var(--accent)}
 .badge{font-family:var(--sans);font-size:.72rem;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 8px}
 .schoolrow{font-size:.92rem;margin:4px 0 0}
-.schoolrow b{font-family:var(--serif)}
+.schoolrow b{font-family:var(--jua)}
 /* 로그인 */
 .form{display:grid;gap:6px;margin-top:20px}
 .form label{font-size:.8rem;color:var(--muted);font-weight:600;margin-top:8px}
@@ -166,7 +166,7 @@ footer{word-break:keep-all;margin-top:44px;padding-top:12px;border-top:1px solid
   <header class="top">
     <div>
       <div class="eyebrow">고1 · 한글 맞춤법</div>
-      <h1 class="brand" id="brand"><span class="heart">♥</span>맞춤법 교정실</h1>
+      <h1 class="brand" id="brand"><span class="heart">♥︎</span>맞춤법 교정실</h1>
     </div>
     <nav class="tabs" aria-label="메뉴">
       <button type="button" data-tab="practice">연습</button>
