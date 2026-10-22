@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>맞춤법 교정실</title>
+<meta name="description" content="고1 한글 맞춤법 반복 연습 — 조항 카드, 바른 표기, 근거 조항, 조항 빈칸">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* 한 줄 폭(최대 640px) 단일 지면. 흰 원고 + 빨간 교정 부호 하나. 헤어라인, 점토색 포인트. */
+:root{
+  --bg:#f6f6f4; --paper:#ffffff; --ink:#1c1b1a; --muted:#6b6863; --rule:#dcd9d4;
+  --accent:#b0503a; --accent-soft:#f3e3dd; --plate:#ece8e1; --good:#2f6b4f; --good-soft:#e2efe8;
+  --serif:"Noto Serif KR","Nanum Myeongjo","Batang",serif;
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151514; --paper:#1d1c1b; --ink:#ecebe7; --muted:#a19d97; --rule:#36332f;
+  --accent:#de7d62; --accent-soft:#3a2520; --plate:#2a2826; --good:#6fbf95; --good-soft:#1d3329; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151514; --paper:#1d1c1b; --ink:#ecebe7; --muted:#a19d97; --rule:#36332f;
+  --accent:#de7d62; --accent-soft:#3a2520; --plate:#2a2826; --good:#6fbf95; --good-soft:#1d3329; color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;margin:0}
+.wrap{max-width:640px;margin:0 auto;padding-inline:16px;padding-block:20px 56px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:1px solid var(--ink);padding-bottom:10px;margin-bottom:22px}
+.brand{font-family:var(--serif);font-weight:700;font-size:1.3rem;letter-spacing:-.01em;margin:0;cursor:pointer;white-space:nowrap}
+.brand .heart{color:var(--accent);margin-right:6px}
+.eyebrow{font-size:.75rem;letter-spacing:.08em;color:var(--muted)}
+.tabs{display:flex;gap:14px}
+.tabs button{background:none;border:0;padding:4px 0;font-size:.92rem;color:var(--muted);border-bottom:2px solid transparent}
+.tabs button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+
+h2.sec{font-size:.78rem;letter-spacing:.1em;color:var(--muted);font-weight:600;margin:28px 0 10px}
+.hero{display:grid;grid-template-columns:76px 1fr;gap:12px;align-items:center;margin-bottom:6px}
+.hero img{width:76px;height:auto;display:block}
+.bubble{justify-self:start;position:relative;background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:9px 12px;font-size:.9rem;line-height:1.5}
+.bubble::before{content:"";position:absolute;left:-7px;top:50%;width:12px;height:12px;background:var(--paper);border-left:1px solid var(--rule);border-bottom:1px solid var(--rule);transform:translateY(-50%) rotate(45deg)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--rule);background:var(--paper);border-radius:999px;padding:6px 13px;font-size:.9rem;line-height:1.3}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.note{font-size:.82rem;color:var(--muted);margin:8px 0 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;padding:11px 18px;border:1px solid var(--ink);background:var(--paper);font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.wide{width:100%;margin-top:24px}
+.btn:disabled{opacity:.45;cursor:default}
+.linkbtn{background:none;border:0;color:var(--muted);font-size:.85rem;padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+
+.panel{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:14px 16px}
+.stats{display:flex;gap:22px;margin-top:10px}
+.stat b{display:block;font-family:var(--serif);font-size:1.35rem;line-height:1.2}
+.stat span{font-size:.78rem;color:var(--muted)}
+
+/* 문제 */
+.qtop{display:flex;align-items:center;justify-content:space-between;font-size:.85rem;color:var(--muted)}
+.bar{height:2px;background:var(--rule);margin:8px 0 20px}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .25s}
+.qkind{font-size:.75rem;letter-spacing:.1em;color:var(--muted);font-weight:600;margin-bottom:10px}
+.qsent{font-family:var(--serif);font-size:1.22rem;line-height:2.3;margin:0 0 18px;word-break:keep-all;overflow-wrap:anywhere}
+.slot{display:inline-block;min-width:3.4em;border-bottom:2px solid var(--accent);text-align:center;line-height:1.4;padding:0 2px}
+.slot.on{border-bottom-color:var(--good);color:var(--good);font-weight:700}
+.fix{position:relative;display:inline-block;line-height:1.4}
+.fix s{text-decoration-color:var(--accent);text-decoration-thickness:2px;color:var(--muted)}
+.fix b{position:absolute;left:50%;top:-1.25em;transform:translateX(-50%);color:var(--accent);font-size:.82em;white-space:nowrap;font-weight:700}
+.mark{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:6px;font-weight:700}
+.opts{display:grid;gap:10px}
+.opts.two{grid-template-columns:1fr 1fr}
+.opt{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:13px 14px;text-align:left;font-size:1.02rem;line-height:1.45}
+.opts.two .opt{text-align:center;font-family:var(--serif);font-size:1.1rem}
+.opt small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px;font-family:var(--sans)}
+.opt.ok{border-color:var(--good);background:var(--good-soft)}
+.opt.ng{border-color:var(--accent);background:var(--accent-soft);text-decoration:line-through;text-decoration-color:var(--accent)}
+.opt:disabled{cursor:default}
+.blankrow{font-family:var(--serif);font-size:1.08rem;line-height:2.1;word-break:keep-all;overflow-wrap:anywhere}
+.blankrow input{font:inherit;width:7.5em;max-width:100%;border:0;border-bottom:2px solid var(--accent);background:transparent;color:var(--ink);text-align:center;padding:0 2px;border-radius:0}
+.fb{margin-top:18px;min-height:1.6em}
+.fb .okword{color:var(--good);font-weight:700;font-size:1.05rem}
+.why{border-left:2px solid var(--accent);padding:2px 0 2px 12px;font-size:.92rem}
+.why b{font-weight:600}
+.next{margin-top:20px}
+
+/* 결과 */
+.score{font-family:var(--serif);font-size:2.2rem;font-weight:700;margin:4px 0 0}
+.score span{font-size:1rem;color:var(--muted);font-weight:500}
+.wlist{list-style:none;padding:0;margin:0}
+.wlist li{border-top:1px solid var(--rule);padding:12px 0}
+.wlist .w1{font-family:var(--serif);font-size:1.02rem;line-height:2.1}
+.wlist .w2{font-size:.84rem;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+
+/* 조항 카드 */
+.chap{font-family:var(--serif);font-size:1.05rem;font-weight:700;margin:30px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+.chap span{font-family:var(--sans);font-size:.78rem;color:var(--muted);font-weight:500;margin-right:6px}
+details.art{border-bottom:1px solid var(--rule)}
+details.art summary{list-style:none;display:flex;align-items:baseline;gap:10px;padding:12px 2px;cursor:pointer}
+details.art summary::-webkit-details-marker{display:none}
+details.art summary .no{font-family:var(--serif);font-weight:700;min-width:3.4em}
+details.art summary .k{flex:1}
+details.art summary .cnt{font-size:.78rem;color:var(--muted)}
+details.art[open] summary .no{color:var(--accent)}
+.artbody{padding:2px 2px 18px}
+.law{font-family:var(--serif);background:var(--plate);border-radius:8px;padding:12px 14px;margin:0 0 10px;font-size:.98rem;line-height:1.75}
+.law .sub{display:block;margin-top:6px;font-size:.9rem}
+.law .sub b{color:var(--accent);font-weight:700;margin-right:4px}
+.core{font-size:.95rem;margin:12px 0}
+.core::before{content:"♥";color:var(--accent);margin-right:6px}
+.exg{margin:10px 0}
+.exg .lab{font-size:.78rem;color:var(--muted);margin-bottom:4px}
+.ex{display:flex;flex-wrap:wrap;gap:6px}
+.ex span{background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:2px 8px;font-size:.9rem}
+.pre{font-size:.82rem;color:var(--muted);margin-top:12px}
+.pre b{color:var(--ink);font-weight:600}
+
+/* 오답 */
+.nrow{display:grid;grid-template-columns:3.6em 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--rule);font-size:.92rem}
+.nrow .no{font-family:var(--serif);font-weight:700}
+.nrow .meter{display:block;height:6px;background:var(--plate);border-radius:3px;overflow:hidden}
+.nrow .meter i{display:block;height:100%;background:var(--accent)}
+.empty{color:var(--muted);font-size:.92rem;padding:18px 0}
+footer{margin-top:44px;padding-top:12px;border-top:1px solid var(--rule);font-size:.75rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">고1 · 한글 맞춤법</div>
+      <h1 class="brand" id="brand"><span class="heart">♥</span>맞춤법 교정실</h1>
+    </div>
+    <nav class="tabs" aria-label="메뉴">
+      <button type="button" data-tab="practice">연습</button>
+      <button type="button" data-tab="rules">조항</button>
+      <button type="button" data-tab="notes">오답</button>
+    </nav>
+  </header>
+  <main id="app"></main>
+  <footer>조항 원문과 예시는 국립국어원 ‘한글 맞춤법’(2017) 기준. 표준 발음법은 범위 밖. 공부 기록은 지금 쓰는 폰(브라우저)에만 저장됨.</footer>
+</div>
+<script src="data.js"></script>
+<script>
+(function(){
+'use strict';
+const D = window.ORTH_COMMON;
+const app = document.getElementById('app');
+if(!D){ app.innerHTML='<p class="empty">문제 파일을 못 불러옴. 새로고침해 봐.</p>'; return; }
+
+/* ---------- 기본 데이터 */
+const SCHOOLS = ['공통','공항고','동양고','명덕고','한서고','경복여고'];
+const SCH = window.ORTH_SCHOOL || {};               // 학교별 프린트 범위(추가 예정)
+const ART = {}; D.arts.forEach(a=>ART[a.n]=a);
+const RANGES = [
+  {id:'s', label:'총칙·소리', ch:['c1','c3']},
+  {id:'f', label:'형태', ch:['c4']},
+  {id:'w', label:'띄어쓰기', ch:['c5']},
+  {id:'e', label:'그 밖의 것', ch:['c6']},
+];
+const TYPES = [
+  {id:'pick', label:'바른 표기'}, {id:'basis', label:'근거 조항'},
+  {id:'blank', label:'조항 빈칸'}, {id:'mix', label:'섞어서'},
+];
+const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 대기', blank:'조항 빈칸'};
+function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
+const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
+const BLANKS = D.blanks.map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
+const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p;}); BLANKS.forEach(b=>BYID[b.id]=b);
+
+/* ---------- 저장 */
+const KEY='orth.v1';
+let store = {school:'공통', rng:['s','f','w','e'], type:'pick', n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0};
+try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s) store=Object.assign(store,s); }catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
+function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function todayCount(){ return store.day===today() ? store.dayIds.length : 0; }
+
+/* ---------- 유틸 */
+const esc0 = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* 화면 표시용: 줄 끝에서 ‘-’ 뒤로 끊기지 않게 줄 바꿈 없는 하이픈으로 */
+const esc = s => esc0(s).replace(/-/g,'\u2011');
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const norm = s => String(s).replace(/[\s‘’'"“”\-·,.()]/g,'');
+function artLabel(n){ const a=ART[n]; return '제'+n+'항'+(a?' · '+a.k:''); }
+function partLabel(p){ return p && p.p ? ' '+(/^\d/.test(p.p)?p.p:'['+p.p+']') : ''; }
+
+/* ---------- 범위 */
+function allowedArts(rng){
+  const chs = new Set(); RANGES.filter(r=>rng.includes(r.id)).forEach(r=>r.ch.forEach(c=>chs.add(c)));
+  return new Set(D.arts.filter(a=>chs.has(a.c)).map(a=>a.n));
+}
+function buildPool(type, arts){
+  const P = PICKS.filter(p=>arts.has(p.a)), B = BLANKS.filter(b=>arts.has(b.a));
+  const pick = p=>({kind:'pick', it:p, id:p.id}), basis = p=>({kind:'basis', it:p, id:'r'+p.id}), blank = b=>({kind:'blank', it:b, id:b.id});
+  if(type==='pick') return P.map(pick);
+  if(type==='basis') return P.map(basis);
+  if(type==='blank') return B.map(blank);
+  return P.map(p=>Math.random()<.55?pick(p):basis(p)).concat(B.map(blank));
+}
+function weight(id){ const s=store.st[id]; if(store.wrong[id]) return 5; if(!s) return 3; if(s.w>s.c) return 3; return 1; }
+function sample(pool, n){
+  return pool.map(q=>({q, k:Math.pow(Math.random(), 1/weight(q.id))})).sort((a,b)=>b.k-a.k).slice(0,n).map(x=>x.q);
+}
+function basisOptions(n){
+  const near = new Set();
+  D.groups.forEach(g=>{ if(g.includes(n)) g.forEach(x=>{ if(x!==n && ART[x]) near.add(x); }); });
+  let cand = shuffle([...near]).slice(0,3);
+  if(cand.length<3){ const same = shuffle(D.arts.filter(a=>a.c===ART[n].c && a.n!==n && !cand.includes(a.n)).map(a=>a.n)); cand = cand.concat(same).slice(0,3); }
+  return shuffle([n].concat(cand));
+}
+function prepare(q){
+  if(q.kind==='pick') q.opts = shuffle([q.it.o, q.it.x]);
+  if(q.kind==='basis') q.opts = basisOptions(q.it.a);
+  return q;
+}
+
+/* ---------- 화면 전환 */
+let tab = 'practice', sess = null;
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ sess=null; go(b.dataset.tab); });
+document.getElementById('brand').onclick=()=>{ sess=null; go('practice'); };
+function go(t){
+  tab=t; document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-current', b.dataset.tab===t?'page':'false'));
+  if(t==='practice') renderHome(); else if(t==='rules') renderRules(); else renderNotes();
+  window.scrollTo(0,0);
+}
+
+/* ---------- 홈 */
+function chips(list, sel, attr, multi){
+  return '<div class="chips">'+list.map(x=>{
+    const id = x.id!=null ? x.id : x, lab = x.label!=null ? x.label : x;
+    const on = multi ? sel.includes(id) : sel===id;
+    return '<button type="button" class="chip" data-'+attr+'="'+esc(id)+'" aria-pressed="'+on+'">'+esc(lab)+'</button>';
+  }).join('')+'</div>';
+}
+function renderHome(){
+  const arts = allowedArts(store.rng), pool = buildPool(store.type, arts);
+  const schNote = store.school!=='공통' && !SCH[store.school] ? '<p class="note">'+esc(store.school)+' 프린트 범위는 아직 없음. 지금은 공통 범위로 연습.</p>' : '';
+  const wrongN = Object.keys(store.wrong).length;
+  app.innerHTML =
+   '<div class="hero"><img src="char.webp" alt="" width="76" height="95"><div class="bubble">느낌으로 고르지 말고 조항으로 골라.</div></div>'+
+   '<h2 class="sec">학교</h2>'+chips(SCHOOLS, store.school, 'sch', false)+schNote+
+   '<h2 class="sec">범위</h2>'+chips(RANGES, store.rng, 'rng', true)+
+   '<h2 class="sec">유형</h2>'+chips(TYPES, store.type, 'type', false)+
+   '<h2 class="sec">한 번에 풀 문제</h2>'+chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false)+
+   '<p class="note">이 범위 문제 '+pool.length+'개 · 틀린 것과 안 푼 것부터 나옴</p>'+
+   '<button type="button" class="btn primary wide" id="start"'+(pool.length?'':' disabled')+'>시작</button>'+
+   (wrongN?'<p class="note" style="text-align:center"><button type="button" class="linkbtn" id="towrong">오답만 풀기 ('+wrongN+')</button></p>':'')+
+   '<h2 class="sec">순위표</h2><div class="panel"><div class="note" style="margin:0">로그인 연결하면 학교별·전체 순위가 여기 뜸. 지금 기록은 이 폰에만 저장.</div>'+
+   '<div class="stats"><div class="stat"><b>'+todayCount()+'</b><span>오늘 맞힌 문제</span></div><div class="stat"><b>'+store.total+'</b><span>누적 정답</span></div><div class="stat"><b>'+wrongN+'</b><span>오답 노트</span></div></div></div>';
+  app.querySelectorAll('[data-sch]').forEach(b=>b.onclick=()=>{ store.school=b.dataset.sch; save(); renderHome(); });
+  app.querySelectorAll('[data-rng]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.rng, i=store.rng.indexOf(id);
+    if(i>=0){ if(store.rng.length>1) store.rng.splice(i,1); } else store.rng.push(id);
+    save(); renderHome(); });
+  app.querySelectorAll('[data-type]').forEach(b=>b.onclick=()=>{ store.type=b.dataset.type; save(); renderHome(); });
+  app.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{ store.n=+b.dataset.n; save(); renderHome(); });
+  const st=document.getElementById('start'); if(st) st.onclick=()=>startSession(sample(pool, store.n), {from:'home'});
+  const tw=document.getElementById('towrong'); if(tw) tw.onclick=startWrong;
+}
+
+/* ---------- 세션 */
+function startSession(qs, meta){
+  if(!qs.length) return;
+  sess = {qs: qs.map(prepare), i:0, res:[], meta:meta||{}};
+  renderQ();
+}
+function startWrong(){
+  const qs = Object.keys(store.wrong).map(id=>{
+    const it=BYID[id]; if(!it) return null;
+    const kind = id[0]==='r' ? 'basis' : id[0]==='b' ? 'blank' : 'pick';
+    return {kind, it, id};
+  }).filter(Boolean);
+  startSession(shuffle(qs).slice(0,15), {from:'wrong'});
+}
+function startArt(n){
+  const pool = buildPool(PICKS.some(p=>p.a===n)?'mix':'blank', new Set([n]));
+  startSession(sample(pool, Math.min(10,pool.length)), {from:'art', n});
+}
+function record(q, ok){
+  const s = store.st[q.id] || (store.st[q.id]={c:0,w:0});
+  if(ok){ s.c++; store.total++; delete store.wrong[q.id];
+    if(store.day!==today()){ store.day=today(); store.dayIds=[]; }
+    if(!store.dayIds.includes(q.id)) store.dayIds.push(q.id);
+  } else { s.w++; store.wrong[q.id]=1; }
+  save();
+}
+function sentFilled(p, mode, chosen){
+  // mode: 'blank' 빈칸, 'ok' 정답 채움, 'fix' 오답 교정, 'mark' 근거용 밑줄
+  let slot;
+  if(mode==='blank') slot='<span class="slot">&nbsp;</span>';
+  else if(mode==='ok') slot='<span class="slot on">'+esc(p.o)+'</span>';
+  else if(mode==='fix') slot='<span class="fix"><s>'+esc(chosen)+'</s><b>'+esc(p.o)+'</b></span>';
+  else slot='<span class="mark">'+esc(p.o)+'</span>';
+  return esc(p.s).replace('□', slot);
+}
+function whyLine(p){
+  return '<div class="why"><b>'+esc('제'+p.a+'항'+partLabel(p))+'</b> · '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>';
+}
+function renderQ(){
+  const q = sess.qs[sess.i], n = sess.qs.length, it=q.it;
+  let body='';
+  if(q.kind==='pick'){
+    body='<p class="qsent" id="qs">'+sentFilled(it,'blank')+'</p>'+
+      '<div class="opts two">'+q.opts.map((o,k)=>'<button type="button" class="opt" data-o="'+k+'">'+esc(o)+'</button>').join('')+'</div>';
+  } else if(q.kind==='basis'){
+    body='<p class="qsent">'+sentFilled(it,'mark')+'</p><p class="note" style="margin:-8px 0 14px">밑줄 친 표기의 근거는?</p>'+
+      '<div class="opts">'+q.opts.map((a,k)=>'<button type="button" class="opt" data-o="'+k+'"><b>제'+a+'항</b><small>'+esc(ART[a].k)+'</small></button>').join('')+'</div>';
+  } else {
+    body='<p class="note" style="margin:0 0 6px">제'+it.a+'항 · '+esc(ART[it.a].k)+'</p>'+
+      '<div class="blankrow">'+esc(it.b)+'<input id="bi" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="빈칸">'+esc(it.f)+'</div>'+
+      '<button type="button" class="btn next" id="chk">확인</button>';
+  }
+  app.innerHTML =
+    '<div class="qtop"><span>'+(sess.i+1)+' / '+n+'</span><button type="button" class="linkbtn" id="quit">그만하기</button></div>'+
+    '<div class="bar"><i style="width:'+(sess.i/n*100)+'%"></i></div>'+
+    '<div class="qkind">'+KIND_LABEL[q.kind]+'</div>'+body+'<div class="fb" id="fb"></div>';
+  document.getElementById('quit').onclick=()=>{ sess.res.length?renderResult():go('practice'); };
+  if(q.kind==='blank'){
+    const inp=document.getElementById('bi'); inp.focus();
+    const done=()=>answerBlank(q, inp.value);
+    document.getElementById('chk').onclick=done;
+    inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); done(); } };
+  } else {
+    app.querySelectorAll('.opt').forEach(b=>b.onclick=()=>answerOpt(q, +b.dataset.o));
+  }
+}
+function afterAnswer(ok, q, extra){
+  record(q, ok); sess.res.push({q, ok, extra});
+  const fb=document.getElementById('fb');
+  fb.innerHTML = (ok ? '<div class="okword">정답</div>' : (extra||'')) +
+    '<button type="button" class="btn primary next" id="nx">'+(sess.i+1<sess.qs.length?'다음':'결과 보기')+'</button>';
+  const nx=document.getElementById('nx'); nx.focus();
+  nx.onclick=()=>{ sess.i++; sess.i<sess.qs.length ? renderQ() : renderResult(); };
+}
+function answerOpt(q, k){
+  const btns=[...app.querySelectorAll('.opt')]; btns.forEach(b=>b.disabled=true);
+  if(q.kind==='pick'){
+    const chosen=q.opts[k], ok = chosen===q.it.o;
+    btns.forEach((b,i)=>{ if(q.opts[i]===q.it.o) b.classList.add('ok'); else if(i===k) b.classList.add('ng'); });
+    document.getElementById('qs').innerHTML = sentFilled(q.it, ok?'ok':'fix', chosen);
+    afterAnswer(ok, q, ok?'':whyLine(q.it));
+    if(!ok) sess.res[sess.res.length-1].chosen=chosen;
+  } else {
+    const chosen=q.opts[k], ok = chosen===q.it.a;
+    btns.forEach((b,i)=>{ if(q.opts[i]===q.it.a) b.classList.add('ok'); else if(i===k) b.classList.add('ng'); });
+    afterAnswer(ok, q, ok?'':whyLine(q.it));
+  }
+}
+function answerBlank(q, val){
+  if(!String(val).trim()){ document.getElementById('bi').focus(); return; }
+  const it=q.it, ok = [it.k].concat(it.alt||[]).some(a=>norm(a)===norm(val));
+  const inp=document.getElementById('bi'); inp.disabled=true;
+  document.getElementById('chk').remove();
+  if(!ok){
+    inp.outerHTML='<span class="fix"><s>'+esc(val)+'</s><b>'+esc(it.k)+'</b></span>';
+  } else inp.style.borderBottomColor='var(--good)';
+  afterAnswer(ok, q, ok?'':'<div class="why"><b>정답: '+esc(it.k)+'</b></div>');
+  if(!ok) sess.res[sess.res.length-1].chosen=val;
+}
+
+/* ---------- 결과 */
+function renderResult(){
+  const n=sess.res.length, c=sess.res.filter(r=>r.ok).length, wrong=sess.res.filter(r=>!r.ok);
+  let list='';
+  if(wrong.length){
+    list='<h2 class="sec">틀린 문제</h2><ul class="wlist">'+wrong.map(r=>{
+      const it=r.q.it;
+      if(r.q.kind==='blank') return '<li><div class="w1">'+esc(it.b)+'<span class="fix"><s>'+esc(r.chosen||'')+'</s><b>'+esc(it.k)+'</b></span>'+esc(it.f)+'</div><div class="w2">제'+it.a+'항 · '+esc(ART[it.a].k)+'</div></li>';
+      if(r.q.kind==='basis') return '<li><div class="w1">'+sentFilled(it,'mark')+'</div><div class="w2">근거: '+esc('제'+it.a+'항'+partLabel(it))+' · '+esc(ART[it.a].k)+'</div></li>';
+      return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it))+' · '+esc(it.w)+'</div></li>';
+    }).join('')+'</ul>';
+  }
+  app.innerHTML='<div class="qkind">결과</div><p class="score">'+c+' <span>/ '+n+'</span></p>'+list+
+    '<div class="row">'+(wrong.length?'<button type="button" class="btn primary" id="rw">틀린 것만 다시</button>':'')+
+    '<button type="button" class="btn" id="again">한 번 더</button><button type="button" class="btn" id="home2">처음으로</button></div>';
+  const rw=document.getElementById('rw'); if(rw) rw.onclick=()=>startSession(shuffle(wrong.map(r=>({kind:r.q.kind,it:r.q.it,id:r.q.id}))), sess.meta);
+  document.getElementById('again').onclick=()=>{
+    if(sess.meta.from==='art') return startArt(sess.meta.n);
+    if(sess.meta.from==='wrong') return startWrong();
+    startSession(sample(buildPool(store.type, allowedArts(store.rng)), store.n), {from:'home'});
+  };
+  document.getElementById('home2').onclick=()=>{ sess=null; go('practice'); };
+}
+
+/* ---------- 조항 카드 */
+function renderRules(){
+  const cnt={}; PICKS.forEach(p=>cnt[p.a]=(cnt[p.a]||0)+1); BLANKS.forEach(b=>cnt[b.a]=(cnt[b.a]||0)+1);
+  let html='<p class="note" style="margin-top:0">조항 하나씩 펼쳐서 원문 → 핵심 → 예시 순으로. 막히면 아래 선행 문법부터.</p>';
+  D.chapters.forEach(([cid, name, no])=>{
+    const arts=D.arts.filter(a=>a.c===cid); if(!arts.length) return;
+    html+='<div class="chap"><span>'+esc(no)+'</span>'+esc(name)+'</div>';
+    arts.forEach(a=>{
+      html+='<details class="art" id="a'+a.n+'"><summary><span class="no">제'+a.n+'항</span><span class="k">'+esc(a.k)+'</span><span class="cnt">'+(cnt[a.n]||0)+'문제</span></summary><div class="artbody">'+
+        '<div class="law">'+esc(a.t)+a.sub.map(s=>'<span class="sub"><b>'+esc(/^\d/.test(s[0])?s[0]+'.':'['+s[0]+']')+'</b>'+esc(s[1])+'</span>').join('')+'</div>'+
+        '<p class="core">'+esc(a.core)+'</p>'+
+        a.ex.map(g=>'<div class="exg"><div class="lab">'+esc(g[0])+'</div><div class="ex">'+g[1].map(w=>'<span>'+esc(w)+'</span>').join('')+'</div></div>').join('')+
+        (a.pre.length?'<p class="pre"><b>선행 문법</b> · '+a.pre.map(k=>esc(D.pre[k]||k)).join(' · ')+'</p>':'')+
+        ((cnt[a.n]||0)?'<button type="button" class="btn" data-art="'+a.n+'" style="margin-top:12px">이 조항만 풀기</button>':'')+
+        '</div></details>';
+    });
+  });
+  app.innerHTML=html;
+  app.querySelectorAll('[data-art]').forEach(b=>b.onclick=()=>startArt(+b.dataset.art));
+}
+
+/* ---------- 오답 노트 */
+function renderNotes(){
+  const ids=Object.keys(store.wrong).filter(id=>BYID[id]);
+  if(!ids.length){ app.innerHTML='<div class="qkind">오답 노트</div><p class="empty">틀린 문제가 없음. 아직 안 풀었거나, 다 고쳤거나.</p>'; return; }
+  const by={}; ids.forEach(id=>{ const a=BYID[id].a; (by[a]=by[a]||[]).push(id); });
+  const rows=Object.keys(by).map(Number).sort((x,y)=>by[y].length-by[x].length||x-y);
+  const max=Math.max(...rows.map(a=>by[a].length));
+  app.innerHTML='<div class="qkind">오답 노트</div><p class="note" style="margin-top:0">한 번 맞히면 빠짐. 많이 틀린 조항부터.</p>'+
+    rows.map(a=>'<div class="nrow"><span class="no">제'+a+'항</span><span><span style="display:block;margin-bottom:4px">'+esc(ART[a]?ART[a].k:'')+'</span><span class="meter"><i style="width:'+(by[a].length/max*100)+'%"></i></span></span><button type="button" class="linkbtn" data-goart="'+a+'">'+by[a].length+'개</button></div>').join('')+
+    '<button type="button" class="btn primary wide" id="wr">오답만 풀기 ('+ids.length+')</button>'+
+    '<p class="note" style="text-align:center;margin-top:18px"><button type="button" class="linkbtn" id="reset">이 폰 기록 지우기</button></p>';
+  document.getElementById('wr').onclick=startWrong;
+  app.querySelectorAll('[data-goart]').forEach(b=>b.onclick=()=>{ go('rules'); const d=document.getElementById('a'+b.dataset.goart); if(d){ d.open=true; d.scrollIntoView({block:'start'}); } });
+  const rs=document.getElementById('reset'); let armed=false;
+  rs.onclick=()=>{ if(!armed){ armed=true; rs.textContent='한 번 더 누르면 오답·기록 전부 지움'; return; }
+    store.st={}; store.wrong={}; store.total=0; store.dayIds=[]; save(); renderNotes(); };
+}
+
+go('practice');
+})();
+</script>
+</body>
+</html>
