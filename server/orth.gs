@@ -219,6 +219,11 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     }
     return { ok: true, dup: dup, mine: orthMine_(row), board: orthBoard_(st, store, env, row) };
   };
+  // 선생님 페이지: 고른 학교의 순위표(학생 화면과 같은 모양)
+  CORE_ACTIONS.orthBoard = function (req, store, env) {
+    requireAdmin(req, store, env);
+    return { ok: true, board: orthBoard_({ id: '', school: String(req.school || '') }, store, env, null) };
+  };
   CORE_ACTIONS.orthLogout = function (req, store, env) {
     var t = String(req.token || '');
     if (t && t.charAt(0) === 'o' && env.propDel) env.propDel('ot:' + t);
@@ -319,7 +324,7 @@ function orthCheck() {
   function log() { Logger.log(out.join('\n') + '\n\n' + (bad ? '문제 ' + bad + '개 — 이 로그를 그대로 복사해서 Claude에게 보내 주세요.' : '모두 정상입니다. 이제 배포 → 배포 관리 → 새 버전으로 배포하면 됩니다.')); }
 
   if (typeof CORE_ACTIONS === 'undefined' || typeof coreHandle !== 'function') { ng('Code.gs의 공통 로직을 찾지 못했습니다. orth 파일이 Code.gs보다 아래에 있는지 확인해 주세요.'); return log(); }
-  var need = ['orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthLogout'];
+  var need = ['orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
   var miss = need.filter(function (a) { return typeof CORE_ACTIONS[a] !== 'function'; });
   if (miss.length) ng('맞춤법 요청이 없습니다: ' + miss.join(', ')); else ok('맞춤법 요청 ' + need.length + '개 추가됨');
   if (typeof CORE_VERSION !== 'undefined') ok('트래커 버전 그대로 (version ' + CORE_VERSION + ')');
@@ -339,7 +344,7 @@ function orthCheck() {
     if (en.propGet && en.propPut) ok('로그인 유지(30일) 저장소 준비됨'); else ng('스크립트 속성을 쓸 수 없습니다.');
   } catch (e) { ng('시트 확인 중 오류: ' + (e && e.message ? e.message : e)); }
 
-  try { orthSelfTest_(); ok('메모리 시험 통과 (로그인·첫 비밀번호 변경 · 30일 유지·연장·만료 · 비밀번호 바뀌면 풀림 · 하루 한 번만 셈 · 같은 묶음 두 번 막기 · 오답 노트 · 학교·전체 순위 · 주가 바뀌면 이번 주 새로 · 퇴원생 빠짐)'); }
+  try { orthSelfTest_(); ok('메모리 시험 통과 (선생님 순위표 · 로그인·첫 비밀번호 변경 · 30일 유지·연장·만료 · 비밀번호 바뀌면 풀림 · 하루 한 번만 셈 · 같은 묶음 두 번 막기 · 오답 노트 · 학교·전체 순위 · 주가 바뀌면 이번 주 새로 · 퇴원생 빠짐)'); }
   catch (e) { ng('메모리 시험 중 오류: ' + (e && e.message ? e.message : e)); }
   log();
 }
@@ -424,6 +429,10 @@ function orthSelfTest_() {
   must(b.school.week.me.r === 2 && b.school.week.me.up.r === 1 && b.school.week.me.up.gap === 2, '학교 순위 내 자리: ' + JSON.stringify(b.school.week.me));
   must(b.all.week.top[0].n[0].join() === '다다다,나고' && b.all.week.me.r === 3 && b.all.week.of === 3, '전체 순위: ' + JSON.stringify(b.all.week));
   must(b.school.week.top.every(function (g) { return g.n.every(function (x) { return x[0] !== '다다다'; }); }), '다른 학교가 학교 순위에 섞임');
+  // 선생님 페이지 순위표: 선생님 비밀번호로만
+  var tb = P({ action: 'orthBoard', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
+  must(tb.ok && tb.board.school.week.top[0].n[0][0] === '나나나' && tb.board.school.week.of === 2 && !tb.board.school.week.me && tb.board.all.week.of === 3, '선생님 순위표: ' + JSON.stringify(tb.board || tb.error));
+  must(!P({ action: 'orthBoard', token: tg, school: '가고' }).ok, '학생 토큰으로 선생님 순위표가 열림');
 
   // 다음 날: 같은 문제를 다시 맞히면 또 셈
   T += day;
