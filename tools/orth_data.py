@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # 한글 맞춤법 복습 사이트 공통 데이터 (국립국어원 한글 맞춤법 기준)
 # 조항 카드(ARTS) / 바른 표기 고르기(PICKS) / 조항 빈칸(BLANKS)
-import json, sys
+import json, sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 CHAPTERS = [
     ("c1", "총칙", "제1장"),
@@ -751,7 +752,7 @@ blank(56,"지난 일을 나타내는 어미는 ‘","-더라, -던","’으로 �
 
 out = dict(chapters=CHAPTERS, pre=PRE,
            arts=[dict(n=a[0], k=KEY[a[0]], c=a[1], s=a[2], t=a[3], sub=[list(x) for x in a[4]], core=a[5], ex=[list(x) for x in a[6]], pre=a[7]) for a in ARTS],
-           picks=P, blanks=B, groups=GROUPS)
+           picks=P, blanks=B, groups=GROUPS, hanja=__import__('hanja').table())
 # 쓱쓱(O/X)에서는 뺄 문제: 틀린 표기가 실제로 아무도 안 쓰는 모양이라 보자마자 답이 나오는 것.
 # 바른 표기 고르기·근거 조항에서는 그대로 낸다(조항 적용 자체를 묻는 문제라서).
 EZ = set('''옵바 각금 국쑤 갑짜기 몹씨 끄치 얼핃 사묻 자칟 헏 꼬치 갑시 부어케서 바테 도라가고 떠러졌다 읽어오 좋지오

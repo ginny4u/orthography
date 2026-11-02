@@ -144,6 +144,16 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .qwrap{position:relative}
 .stampfb{position:absolute;top:-14px;right:0;width:88px;height:auto;opacity:0;transform:rotate(8deg) scale(2);animation:stampfb .3s cubic-bezier(.2,1.4,.4,1) forwards;pointer-events:none}
 @keyframes stampfb{to{opacity:.95;transform:rotate(8deg) scale(1)}}
+/* 사이시옷 짜임 */
+.hj{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;font-size:14px;line-height:normal}
+.hj .lab{font-size:12px;color:var(--muted);margin-right:2px}
+.hj>span.ha,.hj>span.go{display:inline-flex;flex-direction:column;align-items:center;padding:6px 10px;border-radius:10px;border:1px solid var(--rule);background:var(--paper);font-weight:600}
+.hj>span.ha{border-color:var(--accent);color:var(--accent)}
+.hj small{font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
+.hj>span.ha small{color:var(--accent)}
+.hj i{font-style:normal;color:var(--muted)}
+.hj .vd{flex-basis:100%;font-size:12px;color:var(--muted)}
+.ex span .hjs{display:block;font-size:12px;color:var(--muted);line-height:normal;margin-top:1px}
 /* 결과 */
 .scorebox{position:relative}
 .stampimg{position:absolute;right:0;top:-24px;width:150px;height:150px;transform:rotate(-12deg) scale(2.2);opacity:0;animation:stamp .45s cubic-bezier(.2,1.4,.4,1) .25s forwards;pointer-events:none}
@@ -845,8 +855,16 @@ function sentFilled(p, mode, chosen){
   else slot='<span class="mark">'+esc(p.o)+'</span>';
   return esc(p.s).replace('□', slot);
 }
+// 사이시옷 낱말의 짜임: 한자어 요소에 한자를 붙여 보여 줌(학생들이 한자어·고유어 구분을 어려워해서)
+const HJ = D.hanja || {};
+function hanjaHTML(word){
+  const b = HJ[word]; if(!b) return '';
+  const all = b.every(x=>x[1]), none = b.every(x=>!x[1]);
+  return '<div class="hj"><span class="lab">짜임</span>'+b.map(x=>'<span class="'+(x[1]?'ha':'go')+'">'+esc(x[0])+(x[1]?'<small>'+esc(x[1])+' 한자어</small>':'<small>고유어</small>')+'</span>').join('<i>+</i>')+
+    '<span class="vd">'+(all ? (/^(곳간|셋방|숫자|찻간|툇간|횟수)$/.test(word) ? '전부 한자어지만 예외 여섯 단어(곳간·셋방·숫자·찻간·툇간·횟수)라 사이시옷을 적음' : '전부 한자어 → 사이시옷 없음(예외 여섯 단어만)') : none ? '전부 고유어' : '고유어가 들어 있음')+'</span></div>';
+}
 function whyLine(p){
-  return '<div class="why"><b>'+esc('제'+p.a+'항'+partLabel(p))+'</b> · '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>';
+  return '<div class="why"><b>'+esc('제'+p.a+'항'+partLabel(p))+'</b> · '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>'+(p.a===30?hanjaHTML(p.o):'');
 }
 function renderQ(){
   view='q';
@@ -897,7 +915,8 @@ function renderQ(){
 function afterAnswer(ok, q, extra){
   record(q, ok); sess.res.push({q, ok, extra});
   const fb=document.getElementById('fb');
-  fb.innerHTML = '<img class="stampfb" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'">' + (ok ? '' : (extra||'')) +
+  const okExtra = ok && q.it && q.it.a===30 && q.it.o ? hanjaHTML(q.it.o) : '';
+  fb.innerHTML = '<img class="stampfb" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'">' + (ok ? okExtra : (extra||'')) +
     '<button type="button" class="btn primary next" id="nx">'+(sess.i+1<sess.qs.length?'다음':'결과 보기')+'</button>';
   const nx=document.getElementById('nx'); nx.focus();
   nx.onclick=()=>{ sess.i++; sess.i<sess.qs.length ? renderQ() : renderResult(); };
@@ -933,7 +952,7 @@ function answerBlank(q, val){
 
 // 틀린 곳 찾기: 틀린 것을 다 고르고 맞는 것은 안 골라야 정답
 function spotErrors(it){ const out=[]; it.t.forEach(b=>b[1].forEach(p=>{ if(typeof p!=='string' && p.o) out.push(p); })); return out; }
-const whyOne = (p, right) => '<div class="why" style="margin-top:8px"><b>'+(right ? esc(p.o)+' (맞는 표기)' : '<s style="color:var(--muted)">'+esc(p.x)+'</s> → '+esc(p.o))+'</b> · 제'+p.a+'항 '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>';
+const whyOne = (p, right) => '<div class="why" style="margin-top:8px"><b>'+(right ? esc(p.o)+' (맞는 표기)' : '<s style="color:var(--muted)">'+esc(p.x)+'</s> → '+esc(p.o))+'</b> · 제'+p.a+'항 '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>'+(p.a===30?hanjaHTML(p.o):'');
 function spotWhy(it, bad, oops){
   // bad: 이번에 틀리게 보여 준 자리, oops: 맞는데 고른 자리. 둘 다 없으면(결과 화면 등) 전부
   const out=[]; it.t.forEach((b,bi)=>b[1].forEach((p,pi)=>{ if(typeof p==='string'||!p.o) return; const k=bi+'-'+pi;
@@ -985,6 +1004,7 @@ function answerSwipe(q, yes){
   if(sess.unkey){ sess.unkey(); sess.unkey=null; }
   const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, q.show?'ok':'fix', it.x)+'</p>'+
     '<img class="stampbig" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'"></div>';
+  if(ok && it.a===30){ const fb=document.getElementById('fb'); if(fb) fb.innerHTML=hanjaHTML(it.o); }
   if(ok){ record(q, true); sess.res.push({q, ok:true}); const S=sess; S.timer=setTimeout(()=>{ S.timer=null; if(sess===S && view==='q' && S.qs[S.i]===q){ S.i++; S.i<S.qs.length ? renderQ() : renderResult(); } }, 700); return; }
   afterAnswer(ok, q, whyLine(it));
   if(!ok) sess.res[sess.res.length-1].chosen = q.show ? it.o : it.x;
@@ -1037,7 +1057,7 @@ function renderRules(){
       html+='<details class="art" id="a'+a.n+'"><summary><span class="no">제'+a.n+'항</span><span class="k">'+esc(a.k)+'</span><span class="cnt">'+(cnt[a.n]||0)+'문제</span>'+tag(a.n)+'</summary><div class="artbody">'+
         '<div class="law">'+esc(a.t)+a.sub.map(s=>'<span class="sub"><b>'+esc(/^\d/.test(s[0])?s[0]+'.':'['+s[0]+']')+'</b>'+esc(s[1])+'</span>').join('')+'</div>'+
         '<p class="core">'+esc(a.core)+'</p>'+
-        a.ex.map(g=>'<div class="exg"><div class="lab">'+esc(g[0])+'</div><div class="ex">'+g[1].map(w=>'<span>'+esc(w)+'</span>').join('')+'</div></div>').join('')+
+        a.ex.map(g=>'<div class="exg"><div class="lab">'+esc(g[0])+'</div><div class="ex">'+g[1].map(w=>'<span>'+esc(w)+(a.n===30&&HJ[w]?'<small class="hjs">'+HJ[w].map(x=>x[1]?esc(x[0])+'('+esc(x[1])+')':esc(x[0])).join('+')+'</small>':'')+'</span>').join('')+'</div></div>').join('')+
         (a.pre.length?'<p class="pre"><b>선행 문법</b> · '+a.pre.map(k=>esc(D.pre[k]||k)).join(' · ')+'</p>':'')+
         ((cnt[a.n]||0)?'<button type="button" class="btn" data-art="'+a.n+'" style="margin-top:12px">이 조항만 풀기</button>':'')+
         '</div></details>';
