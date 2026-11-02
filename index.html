@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>맞춤법 교정실</title>
 <meta name="description" content="고1 한글 맞춤법 반복 연습 — 조항 카드, 바른 표기, 근거 조항, 조항 빈칸">
+<meta name="theme-color" content="#bf1f1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="맞춤법">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
@@ -118,14 +124,17 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .tk s{color:var(--muted);font-weight:400;margin-right:4px}.tk b{font-weight:700}
 .tk:disabled{cursor:default}
 /* 쓱쓱 */
-.swipe{position:relative;height:150px;margin:4px 0 12px;touch-action:pan-y}
+.swipe{position:relative;height:150px;margin:4px 0 12px;touch-action:none;overscroll-behavior:contain}
+.swhint{display:flex;justify-content:space-between;font-size:14px;line-height:normal;color:var(--muted);padding:0 6px}
+.swhint b{font-weight:600}
+.swc.nudge{animation:nudge 1.1s ease-in-out .3s 1}
+@keyframes nudge{0%,100%{transform:none}25%{transform:translateX(26px) rotate(1.5deg)}75%{transform:translateX(-26px) rotate(-1.5deg)}}
 .swc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px 24px;background:var(--paper);border:1px solid var(--rule);border-radius:20px;box-shadow:0 6px 24px rgba(0,0,0,.06);user-select:none;cursor:grab;overflow:hidden}
 .swc.still{cursor:default}
 .swc .qsent{text-align:center}
 .stamp{position:absolute;top:14px;padding:4px 10px;border:2px solid;border-radius:8px;font-size:14px;font-weight:700;line-height:normal;opacity:0;pointer-events:none}
 .stamp.ok{right:14px;color:var(--accent);border-color:var(--accent);transform:rotate(12deg)}
 .stamp.no{left:14px;color:var(--muted);border-color:var(--muted);transform:rotate(-12deg)}
-.swbtn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 /* 결과 */
 .scorebox{position:relative}
 .stampimg{position:absolute;right:0;top:-24px;width:150px;height:150px;transform:rotate(-12deg) scale(2.2);opacity:0;animation:stamp .45s cubic-bezier(.2,1.4,.4,1) .25s forwards;pointer-events:none}
@@ -181,6 +190,8 @@ details.art[open] summary .no{color:var(--accent)}
 .form input{font:inherit;letter-spacing:inherit;font-size:18px;padding:12px;border:1px solid var(--rule);border-radius:12px;background:var(--paper);color:var(--ink);width:100%}
 .form .btn.wide{margin-top:16px}
 .err{color:var(--accent);font-size:14px;line-height:1.5;margin:6px 0 0}
+.a2hs{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--soft);border-radius:12px;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5}
+.a2hs b{font-weight:600}
 /* 빠른 시작(틀린 곳 찾기·쓱쓱·오답만) */
 .modes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px}
 .mode{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px;background:var(--paper);border:1px solid var(--rule);border-radius:14px;text-align:left}
@@ -707,6 +718,12 @@ function boardHTML(){
     chips([{id:'week', label:'이번 주'}, {id:'total', label:'누적'}], per, 'per', false)+'</div>'+
     body+'</div>'+(teach?'':statsHTML());
 }
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+function a2hsHTML(){
+  if(!isIOS || standalone || lsGet('orth.a2hs')==='x') return '';
+  return '<div class="a2hs"><span>홈 화면에 추가하면 앱처럼 열려요. 아래 <b>공유</b> 버튼 → <b>홈 화면에 추가</b></span><button type="button" class="linkbtn" id="a2hsx">닫기</button></div>';
+}
 function renderHome(){
   if(!store.school) return renderPick();
   view='home'; setTabs(true);
@@ -733,7 +750,7 @@ function renderHome(){
     '<h2 class="sec">한 번에 풀 문제</h2>'+chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false)+
     '<p class="note">이 범위 문제 '+pool.length+'개 · 틀린 문제와 안 푼 문제가 먼저 나옵니다.</p></div>';
   app.innerHTML =
-   hero(bubbleText())+who+
+   hero(bubbleText())+who+a2hsHTML()+
    '<button type="button" class="btn primary wide" id="start"'+(pool.length?'':' disabled')+'>'+store.n+'문제 시작</button>'+
    '<div class="setline"><span>'+esc(summary)+'</span><button type="button" class="linkbtn" id="tog">'+(store.open?'닫기':'바꾸기')+'</button></div>'+settings+
    '<div class="modes">'+
@@ -763,6 +780,7 @@ function renderHome(){
   const st=document.getElementById('start'); if(st) st.onclick=()=>startSession(sample(pool, store.n), {from:'home'});
   const tw=document.getElementById('towrong'); if(tw) tw.onclick=startWrong;
   app.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>startMode(b.dataset.mode));
+  const ax=document.getElementById('a2hsx'); if(ax) ax.onclick=()=>{ lsSet('orth.a2hs','x'); renderHome(); };
 }
 
 /* ---------- 세션 */
@@ -826,7 +844,7 @@ function renderQ(){
     const word = q.show ? it.o : it.x;
     body='<div class="swipe" id="sw"><div class="swc" id="sc"><p class="qsent" style="margin:0">'+esc(it.s).replace('□','<span class="mark">'+esc(word)+'</span>')+'</p>'+
       '<span class="stamp no" id="st-no">틀림</span><span class="stamp ok" id="st-ok">맞음</span></div></div>'+
-      '<div class="swbtn"><button type="button" class="btn" data-sw="0">← 틀림</button><button type="button" class="btn" data-sw="1">맞음 →</button></div>';
+      '<div class="swhint"><span>← <b>틀림</b></span><span>'+(sess.i===0?'카드를 옆으로 밀어 보세요':'')+'</span><span><b>맞음</b> →</span></div>';
   } else {
     body='<p class="note" style="margin:0 0 6px">제'+it.a+'항 · '+esc(ART[it.a].k)+'</p>'+
       '<div class="blankrow">'+esc(it.b)+'<input id="bi" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="빈칸">'+esc(it.f)+'</div>'+
@@ -903,20 +921,32 @@ function findPart(it, t){ const [bi,pi]=t.split('-').map(Number); const p=it.t[b
 // 쓱쓱: 오른쪽 = 맞음, 왼쪽 = 틀림. 손가락으로 넘기거나 버튼
 function bindSwipe(q){
   const card=document.getElementById('sc'), ok=document.getElementById('st-ok'), no=document.getElementById('st-no');
-  let x0=null, dx=0, done=false;
-  const set = d => { dx=d; card.style.transform='translateX('+d+'px) rotate('+(d/18)+'deg)'; ok.style.opacity=Math.min(1,Math.max(0,d/70)); no.style.opacity=Math.min(1,Math.max(0,-d/70)); };
-  const fire = yes => { if(done) return; done=true; card.style.transition='transform .25s'; set(yes?420:-420); setTimeout(()=>answerSwipe(q, yes), 180); };
-  card.addEventListener('pointerdown', e=>{ if(done) return; x0=e.clientX; card.style.transition='none'; card.setPointerCapture(e.pointerId); });
-  card.addEventListener('pointermove', e=>{ if(x0==null||done) return; set(e.clientX-x0); });
-  const up = ()=>{ if(x0==null||done) return; x0=null; if(dx>80) fire(true); else if(dx<-80) fire(false); else { card.style.transition='transform .2s'; set(0); } };
-  card.addEventListener('pointerup', up); card.addEventListener('pointercancel', up);
-  app.querySelectorAll('[data-sw]').forEach(b=>b.onclick=()=>fire(b.dataset.sw==='1'));
-  const key = e=>{ if(e.key==='ArrowRight') fire(true); else if(e.key==='ArrowLeft') fire(false); };
-  document.addEventListener('keydown', key, {once:true});
+  if(sess.i===0) card.classList.add('nudge');
+  let x0=null, t0=0, dx=0, done=false;
+  const set = d => { dx=d; card.style.transform='translateX('+d+'px) rotate('+(d/18)+'deg)'; ok.style.opacity=Math.min(1,Math.max(0,d/50)); no.style.opacity=Math.min(1,Math.max(0,-d/50)); };
+  const fire = yes => { if(done) return; done=true; card.style.transition='transform .22s ease-out'; set(yes?460:-460); setTimeout(()=>answerSwipe(q, yes), 160); };
+  const start = x => { if(done) return; card.classList.remove('nudge'); x0=x; t0=Date.now(); card.style.transition='none'; };
+  const move = x => { if(x0==null||done) return; set(x-x0); };
+  // 60px 넘게 밀었거나, 짧게라도 빠르게 튕기면 넘어감(틴더처럼)
+  const end = ()=>{ if(x0==null||done) return; const v=dx/Math.max(1,Date.now()-t0); x0=null;
+    if(dx>60 || (dx>20 && v>0.5)) fire(true); else if(dx<-60 || (dx<-20 && v<-0.5)) fire(false); else { card.style.transition='transform .2s'; set(0); } };
+  // iOS 사파리는 pointer 이벤트가 스크롤에 먹히는 때가 있어 touch 이벤트로 받고 기본 동작을 막는다
+  if('ontouchstart' in window){
+    card.addEventListener('touchstart', e=>{ start(e.touches[0].clientX); }, {passive:true});
+    card.addEventListener('touchmove', e=>{ e.preventDefault(); move(e.touches[0].clientX); }, {passive:false});
+    card.addEventListener('touchend', end); card.addEventListener('touchcancel', end);
+  } else {
+    card.addEventListener('pointerdown', e=>{ start(e.clientX); card.setPointerCapture(e.pointerId); });
+    card.addEventListener('pointermove', e=>move(e.clientX));
+    card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+  }
+  const key = e=>{ if(e.key==='ArrowRight'){ fire(true); document.removeEventListener('keydown', key); } else if(e.key==='ArrowLeft'){ fire(false); document.removeEventListener('keydown', key); } };
+  document.addEventListener('keydown', key);
+  sess.unkey = ()=>document.removeEventListener('keydown', key);
 }
 function answerSwipe(q, yes){
   const it=q.it, ok = yes===q.show;
-  app.querySelectorAll('[data-sw]').forEach(b=>b.disabled=true);
+  if(sess.unkey){ sess.unkey(); sess.unkey=null; }
   const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, q.show?'ok':'fix', it.x)+'</p></div>';
   if(ok && sess.i+1<sess.qs.length){ record(q, true); sess.res.push({q, ok:true}); const fb=document.getElementById('fb'); fb.innerHTML='<div class="okword">정답</div>'; setTimeout(()=>{ if(sess && sess.qs[sess.i]===q){ sess.i++; renderQ(); } }, 650); return; }
   afterAnswer(ok, q, ok?'':whyLine(it));
