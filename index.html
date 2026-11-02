@@ -42,7 +42,7 @@ header.top{display:flex;align-items:center;justify-content:space-between;gap:12p
 
 h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);margin:28px 0 10px}
 .hero{display:flex;gap:12px;align-items:center;margin-bottom:20px}
-.hero img{width:88px;height:auto;display:block;flex:none}
+.hero img{width:80px;height:auto;display:block;flex:none}
 .bubble{position:relative;background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.5}
 .bubble::before{content:"";position:absolute;left:-7px;top:50%;width:12px;height:12px;background:var(--paper);border-left:1px solid var(--rule);border-bottom:1px solid var(--rule);transform:translateY(-50%) rotate(45deg)}
 .who{font-size:14px;line-height:normal;color:var(--muted);margin:0 0 20px}
@@ -366,7 +366,7 @@ const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.
 const norm = s => String(s).replace(/[\s‘’'"“”\-·,.()]/g,'');
 function artLabel(n){ const a=ART[n]; return '제'+n+'항'+(a?' · '+a.k:''); }
 function partLabel(p){ return p && p.p ? ' '+(/^\d/.test(p.p)?p.p:'['+p.p+']') : ''; }
-const hero = t => '<div class="hero"><img src="logo.webp" alt="" width="88" height="88"><div class="bubble">'+t+'</div></div>';
+const hero = t => '<div class="hero"><img src="logo.webp" alt="" width="80" height="80"><div class="bubble">'+t+'</div></div>';
 
 /* ---------- 범위: 기본 개념(장별) + 우리 학교 교과서·프린트·올림포스(그 자료 문제 + 관련 조항 문제 전부) */
 function allowedArts(rng){
