@@ -109,11 +109,11 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .msg{display:flex}.msg.b{justify-content:flex-end}
 .bb{max-width:88%;background:var(--paper);border:1px solid var(--rule);border-radius:16px;padding:10px 12px;font-size:16px;line-height:1.9}
 .msg.a .bb{border-bottom-left-radius:4px}.msg.b .bb{background:var(--plate);border-color:var(--plate);border-bottom-right-radius:4px}
-.tk{background:none;border:0;padding:0 1px;margin:0 -1px;border-radius:4px;font:inherit;letter-spacing:inherit;line-height:1.4;border-bottom:2px solid transparent}
-.tk.sel{border-bottom-color:var(--accent);background:var(--soft)}
+.tk{background:none;border:0;padding:0;margin:0;border-radius:2px;font:inherit;letter-spacing:inherit;line-height:1.4;box-shadow:0 2px 0 transparent}
+.tk.sel{box-shadow:0 2px 0 var(--accent);background:var(--soft)}
 .tk.hit{color:var(--accent);font-weight:700;background:none}
-.tk.missed{color:var(--accent);background:var(--soft);border-bottom-color:var(--accent)}
-.tk.oops{text-decoration:line-through;color:var(--muted);background:none;border-bottom-color:var(--muted)}
+.tk.missed{color:var(--accent);background:var(--soft);box-shadow:0 2px 0 var(--accent)}
+.tk.oops{text-decoration:line-through;color:var(--muted);background:none;box-shadow:0 2px 0 var(--muted)}
 .tk s{color:var(--muted);font-weight:400;margin-right:4px}.tk b{font-weight:700}
 .tk:disabled{cursor:default}
 /* 쓱쓱 */
@@ -676,10 +676,10 @@ function vsHTML(){
   const per = store.bs.per==='total' ? 'total' : 'week', key = per==='week'?'w':'t', pk = per==='week'?'pw':'pt';
   const rows = sch.map(x=>({s:x.s, n:x.n, p:x[pk], d:x[key], avg: x.n ? x[key]/x.n : 0})).sort((a,b)=>b.avg-a.avg || b.d-a.d);
   const max = Math.max(...rows.map(r=>r.avg), 0.0001);
-  return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'누적')+'</h2>'<div class="card"><div class="vs">'+rows.map((r,i)=>
+  return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'누적')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
     '<div class="v'+(r.s===store.school?' me':'')+'"><span class="s">'+(i+1)+'위 '+esc(r.s)+'</span><span class="m"><i style="width:'+(r.avg/max*100)+'%"></i></span>'+
     '<span class="d">1인당 <b>'+(Math.round(r.avg*10)/10)+'개</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
-    '</div><p class="note">학교 재원생 전체 기준 1인당 맞힌 문제 수입니다. 안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
+    '</div><p class="note">학교 재원생 전체 기준 1인당 맞힌 문제 수입니다.<br>안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
 }
 function boardHTML(){
   const teach = !auth && guest && !!teachTok;
