@@ -755,10 +755,20 @@ function boardHTML(){
     body+'</div>'+(teach?'':statsHTML());
 }
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isAndroid = /Android/.test(navigator.userAgent);
+const isSamsung = /SamsungBrowser/.test(navigator.userAgent);
 const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
+// 안드로이드 크롬은 설치 창을 직접 띄울 수 있음(beforeinstallprompt)
+let installEv = null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEv=e; if(view==='home') renderHome(); });
 function a2hsHTML(){
-  if(!isIOS || standalone || lsGet('orth.a2hs')==='x') return '';
-  return '<div class="a2hs"><span><b>앱처럼 쓰는 법</b><br>화면 아래 오른쪽 <b>⋯</b> 버튼을 누르고, <b>공유</b>를 누른 다음, 목록에서 <b>홈 화면에 추가</b>를 고르면 폰 바탕화면에 아이콘이 생겨요. 다음부터는 그 아이콘으로 바로 들어올 수 있어요.</span><button type="button" class="linkbtn" id="a2hsx">닫기</button></div>';
+  if(standalone || lsGet('orth.a2hs')==='x' || !(isIOS || isAndroid)) return '';
+  let how;
+  if(isIOS) how='화면 아래 오른쪽 <b>⋯</b> 버튼을 누르고, <b>공유</b>를 누른 다음, 목록에서 <b>홈 화면에 추가</b>를 고르면 폰 바탕화면에 아이콘이 생겨요.';
+  else if(installEv) how='아래 <b>앱으로 설치</b>를 누르면 바탕화면에 아이콘이 생겨요.<br><button type="button" class="btn" id="a2hsgo" style="margin-top:8px;height:40px">앱으로 설치</button>';
+  else if(isSamsung) how='오른쪽 아래 <b>≡</b> 메뉴를 누르고 <b>현재 페이지 추가</b> → <b>홈 화면</b>을 고르면 바탕화면에 아이콘이 생겨요.';
+  else how='오른쪽 위 <b>⋮</b> 메뉴를 누르고 <b>홈 화면에 추가</b>(또는 <b>앱 설치</b>)를 고르면 바탕화면에 아이콘이 생겨요.';
+  return '<div class="a2hs"><span><b>앱처럼 쓰는 법</b><br>'+how+' 다음부터는 그 아이콘으로 바로 들어올 수 있어요.</span><button type="button" class="linkbtn" id="a2hsx">닫기</button></div>';
 }
 function renderHome(){
   if(!store.school) return renderPick();
@@ -820,6 +830,7 @@ function renderHome(){
   const st=document.getElementById('start'); if(st) st.onclick=()=>{ if(cur) startMode(cur); };
   const tw=document.getElementById('towrong'); if(tw) tw.onclick=startWrong;
   const ax=document.getElementById('a2hsx'); if(ax) ax.onclick=()=>{ lsSet('orth.a2hs','x'); renderHome(); };
+  const ag=document.getElementById('a2hsgo'); if(ag) ag.onclick=()=>{ const ev=installEv; if(!ev) return; installEv=null; ev.prompt(); ev.userChoice.then(()=>{ lsSet('orth.a2hs','x'); renderHome(); }); };
 }
 
 /* ---------- 세션 */
