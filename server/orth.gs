@@ -19,6 +19,7 @@ var ORTH_MASK_NAME = false;
 var ORTH_TOP = 5;            // 순위표에 보여 줄 등수 줄 수(같은 등수는 한 줄)
 var ORTH_NAMES = 8;          // 한 줄에 보여 줄 이름 수(넘으면 '외 n명')
 var ORTH_TOKEN_DAYS = 30;    // 사이트 로그인 유지 기간(일)
+var ORTH_GHOST_CODE = '0707'; // 👻 졸업생 입장 코드(기본 개념만, 기록·순위 없음). 바꾸려면 여기만 고치면 됨
 var ORTH_DAY_CAP = 1000;     // 하루에 셀 수 있는 최대 정답 수(장난 방지)
 var ORTH_ID = /^[a-z][0-9a-z]{1,23}$/;   // 문제 번호 모양
 var ORTH_COLS = ['studentId', 'school', 'name', 'total', 'week', 'weekN', 'day', 'dayN', 'solved', 'updatedAt', 'dayIds', 'cids', 'wrong', 'st'];
@@ -183,6 +184,11 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     store.students().forEach(function (s) { byId[s.id] = s; });
     r.matches.forEach(function (m) { m.mc = !!(byId[m.id] && byId[m.id].mustChange); });
     return r;
+  };
+  // 👻 졸업생 입장: 코드만 확인(계정·기록 없음)
+  CORE_ACTIONS.orthGhost = function (req, store, env) {
+    if (String(req.code || '') !== ORTH_GHOST_CODE) throw userErr('코드가 맞지 않아요.');
+    return { ok: true };
   };
   CORE_ACTIONS.orthLogin = function (req, store, env) {
     var r = CORE_ACTIONS.login(req, store, env);
@@ -368,7 +374,7 @@ function orthCheck() {
   function log() { Logger.log(out.join('\n') + '\n\n' + (bad ? '문제 ' + bad + '개 — 이 로그를 그대로 복사해서 Claude에게 보내 주세요.' : '모두 정상입니다. 이제 배포 → 배포 관리 → 새 버전으로 배포하면 됩니다.')); }
 
   if (typeof CORE_ACTIONS === 'undefined' || typeof coreHandle !== 'function') { ng('Code.gs의 공통 로직을 찾지 못했습니다. orth 파일이 Code.gs보다 아래에 있는지 확인해 주세요.'); return log(); }
-  var need = ['orthLookup', 'orthTeachLogin', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
+  var need = ['orthLookup', 'orthGhost', 'orthTeachLogin', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
   var miss = need.filter(function (a) { return typeof CORE_ACTIONS[a] !== 'function'; });
   if (miss.length) ng('맞춤법 요청이 없습니다: ' + miss.join(', ')); else ok('맞춤법 요청 ' + need.length + '개 추가됨');
   if (typeof CORE_VERSION !== 'undefined') ok('트래커 버전 그대로 (version ' + CORE_VERSION + ')');
@@ -479,6 +485,7 @@ function orthSelfTest_() {
   var tb = P({ action: 'orthBoard', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
   must(tb.ok && tb.board.school.week.top[0].n[0][0] === '나나나' && tb.board.school.week.of === 2 && !tb.board.school.week.me && tb.board.all.week.of === 3, '선생님 순위표: ' + JSON.stringify(tb.board || tb.error));
   must(!P({ action: 'orthBoard', token: tg, school: '가고' }).ok, '학생 토큰으로 선생님 순위표가 열림');
+  must(P({ action: 'orthGhost', code: ORTH_GHOST_CODE }).ok && !P({ action: 'orthGhost', code: 'x' }).ok, '졸업생 코드');
   var tl = P({ action: 'orthTeachLogin', pw: 'orth-check' });
   must(tl.ok && tl.token && tl.token.charAt(0) === 'a' && P({ action: 'orthBoard', token: tl.token, school: '가고' }).ok, '선생님 30일 토큰');
   must(!P({ action: 'orthTeachLogin', pw: 'nope' }).ok && !P({ action: 'orthBoard', token: 'a0000', school: '가고' }).ok, '선생님 토큰 검사');
