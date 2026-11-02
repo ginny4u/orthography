@@ -199,7 +199,7 @@ details.art[open] summary .no{color:var(--accent)}
 .form input{font:inherit;letter-spacing:inherit;font-size:18px;padding:12px;border:1px solid var(--rule);border-radius:12px;background:var(--paper);color:var(--ink);width:100%}
 .form .btn.wide{margin-top:16px}
 .err{color:var(--accent);font-size:14px;line-height:1.5;margin:6px 0 0}
-.a2hs{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--soft);border-radius:12px;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5}
+.a2hs{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:var(--soft);border-radius:12px;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5}
 .a2hs b{font-weight:600}
 /* 유형 고르기 카드 */
 .types{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
@@ -739,7 +739,7 @@ const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
 const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
 function a2hsHTML(){
   if(!isIOS || standalone || lsGet('orth.a2hs')==='x') return '';
-  return '<div class="a2hs"><span>홈 화면에 추가하면 앱처럼 열려요. 아래 <b>⋯</b> → <b>공유</b> → <b>홈 화면에 추가</b></span><button type="button" class="linkbtn" id="a2hsx">닫기</button></div>';
+  return '<div class="a2hs"><span><b>앱처럼 쓰는 법</b><br>화면 아래 오른쪽 <b>⋯</b> 버튼을 누르고, <b>공유</b>를 누른 다음, 목록에서 <b>홈 화면에 추가</b>를 고르면 폰 바탕화면에 아이콘이 생겨요. 다음부터는 그 아이콘으로 바로 들어올 수 있어요.</span><button type="button" class="linkbtn" id="a2hsx">닫기</button></div>';
 }
 function renderHome(){
   if(!store.school) return renderPick();
