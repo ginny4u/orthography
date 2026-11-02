@@ -175,6 +175,15 @@ function orthHomeData_(st, store, env) {
 /* ---------- 요청 ---------- */
 if (typeof CORE_ACTIONS !== 'undefined') {
   // 로그인: 트래커 로그인과 같고, 트래커 홈 대신 맞춤법 기록·순위를 돌려줌
+  // 이름 찾기: 트래커 lookup과 같고, 처음 로그인(비밀번호 0000)인지(mc)를 같이 돌려줌
+  CORE_ACTIONS.orthLookup = function (req, store, env) {
+    var r = CORE_ACTIONS.lookup(req, store, env);
+    if (!r.ok) return r;
+    var byId = {};
+    store.students().forEach(function (s) { byId[s.id] = s; });
+    r.matches.forEach(function (m) { m.mc = !!(byId[m.id] && byId[m.id].mustChange); });
+    return r;
+  };
   CORE_ACTIONS.orthLogin = function (req, store, env) {
     var r = CORE_ACTIONS.login(req, store, env);
     if (!r.ok || r.me.mustChange) return r;
@@ -338,7 +347,7 @@ function orthCheck() {
   function log() { Logger.log(out.join('\n') + '\n\n' + (bad ? '문제 ' + bad + '개 — 이 로그를 그대로 복사해서 Claude에게 보내 주세요.' : '모두 정상입니다. 이제 배포 → 배포 관리 → 새 버전으로 배포하면 됩니다.')); }
 
   if (typeof CORE_ACTIONS === 'undefined' || typeof coreHandle !== 'function') { ng('Code.gs의 공통 로직을 찾지 못했습니다. orth 파일이 Code.gs보다 아래에 있는지 확인해 주세요.'); return log(); }
-  var need = ['orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
+  var need = ['orthLookup', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
   var miss = need.filter(function (a) { return typeof CORE_ACTIONS[a] !== 'function'; });
   if (miss.length) ng('맞춤법 요청이 없습니다: ' + miss.join(', ')); else ok('맞춤법 요청 ' + need.length + '개 추가됨');
   if (typeof CORE_VERSION !== 'undefined') ok('트래커 버전 그대로 (version ' + CORE_VERSION + ')');

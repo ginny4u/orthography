@@ -558,9 +558,12 @@ function renderLogin(step){
   else if(L.step==='pick') html=hero('같은 이름의 학생이 있습니다. 본인을 선택해 주세요.')+
     '<div class="spick">'+L.matches.map((m,i)=>'<button type="button" class="scard" data-m="'+i+'"><span class="nm">'+esc(m.label)+'</span></button>').join('')+'</div>'+
     '<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" data-back>이름 다시 입력하기</button></p>';
-  else if(L.step==='pw') html=hero(L.re ? '로그인이 만료되었습니다. 비밀번호를 다시 입력해 주세요.' : '내신 트래커에서 사용하는 비밀번호 4자리를 입력해 주세요.')+
+  else if(L.step==='pw') html=hero(L.re ? '로그인이 만료되었습니다. 비밀번호를 다시 입력해 주세요.'
+      : L.pick.mc===true ? '처음 로그인이네요. 비밀번호 <b>0000</b>을 입력해 주세요. 바로 새 비밀번호를 정하게 됩니다.'
+      : L.pick.mc===false ? '내신 트래커에서 쓰는 비밀번호 4자리를 입력해 주세요.'
+      : '내신 트래커에서 사용하는 비밀번호 4자리를 입력해 주세요.')+
     '<form class="form" id="f-pw" novalidate><label for="in-pw">'+esc(L.pick.label)+' · 비밀번호</label>'+pw('in-pw','current-password')+
-    '<p class="note">처음 로그인하는 경우 0000을 입력해 주세요.</p>'+err+
+    (L.pick.mc==null && !L.re ? '<p class="note">처음 로그인하는 경우 0000을 입력해 주세요.</p>' : '')+err+
     '<button class="btn primary wide" type="submit">로그인</button></form>'+
     '<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" data-back>'+(L.re?'다른 학생으로 로그인':'본인이 아닙니다')+'</button></p>';
   else if(L.step==='change') html=hero('처음 로그인했으니 비밀번호를 먼저 바꿔 주세요.')+
@@ -585,7 +588,7 @@ function onLoginSubmit(ev){
     const nm=val('in-name').trim(); L.name=nm;
     if(!nm) return fail('이름을 입력해 주세요.');
     busy();
-    api('lookup', {name:nm}).then(r=>{
+    api('orthLookup', {name:nm}).then(r=> noServer(r) ? api('lookup', {name:nm}) : r).then(r=>{
       if(!r.ok) return fail(r.error);
       L.err=''; L.matches=r.matches||[];
       if(L.matches.length===1){ L.pick=L.matches[0]; renderLogin('pw'); } else renderLogin('pick');
