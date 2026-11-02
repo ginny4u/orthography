@@ -243,13 +243,34 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     return { ok: true, dup: dup, mine: orthMine_(row), board: orthBoard_(st, store, env, row) };
   };
   // 선생님 페이지: 고른 학교의 순위표(학생 화면과 같은 모양)
+  // 선생님 페이지 로그인: 트래커 선생님 비밀번호 확인 뒤 30일짜리 토큰('a'로 시작)을 따로 줌(트래커 토큰은 6시간이라)
+  CORE_ACTIONS.orthTeachLogin = function (req, store, env) {
+    var r = CORE_ACTIONS.adminLogin(req, store, env);
+    if (!r.ok) return r;
+    if (!env.propPut) return r;
+    var tok = 'a' + env.uuid().replace(/-/g, '');
+    env.propPut('ot:' + tok, JSON.stringify({ i: '*admin*', e: Date.parse(env.now()) + ORTH_TOKEN_DAYS * 864e5, p: '' }));
+    return { ok: true, token: tok };
+  };
+  function orthRequireAdmin_(req, store, env) {
+    var t = String(req.token || '');
+    if (t.charAt(0) === 'a' && env.propGet) {
+      var r = null; try { r = JSON.parse(env.propGet('ot:' + t) || 'null'); } catch (e) { }
+      if (r && r.i === '*admin*' && r.e > Date.parse(env.now())) {
+        if (r.e - Date.parse(env.now()) < (ORTH_TOKEN_DAYS - 1) * 864e5) { r.e = Date.parse(env.now()) + ORTH_TOKEN_DAYS * 864e5; env.propPut('ot:' + t, JSON.stringify(r)); }
+        return true;
+      }
+      throw userErr('선생님 로그인이 필요해요. 다시 로그인해 주세요.');
+    }
+    return requireAdmin(req, store, env);
+  }
   CORE_ACTIONS.orthBoard = function (req, store, env) {
-    requireAdmin(req, store, env);
+    orthRequireAdmin_(req, store, env);
     return { ok: true, board: orthBoard_({ id: '', school: String(req.school || '') }, store, env, null) };
   };
   CORE_ACTIONS.orthLogout = function (req, store, env) {
     var t = String(req.token || '');
-    if (t && t.charAt(0) === 'o' && env.propDel) env.propDel('ot:' + t);
+    if (t && (t.charAt(0) === 'o' || t.charAt(0) === 'a') && env.propDel) env.propDel('ot:' + t);
     return { ok: true };
   };
 }
@@ -347,7 +368,7 @@ function orthCheck() {
   function log() { Logger.log(out.join('\n') + '\n\n' + (bad ? '문제 ' + bad + '개 — 이 로그를 그대로 복사해서 Claude에게 보내 주세요.' : '모두 정상입니다. 이제 배포 → 배포 관리 → 새 버전으로 배포하면 됩니다.')); }
 
   if (typeof CORE_ACTIONS === 'undefined' || typeof coreHandle !== 'function') { ng('Code.gs의 공통 로직을 찾지 못했습니다. orth 파일이 Code.gs보다 아래에 있는지 확인해 주세요.'); return log(); }
-  var need = ['orthLookup', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
+  var need = ['orthLookup', 'orthTeachLogin', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
   var miss = need.filter(function (a) { return typeof CORE_ACTIONS[a] !== 'function'; });
   if (miss.length) ng('맞춤법 요청이 없습니다: ' + miss.join(', ')); else ok('맞춤법 요청 ' + need.length + '개 추가됨');
   if (typeof CORE_VERSION !== 'undefined') ok('트래커 버전 그대로 (version ' + CORE_VERSION + ')');
@@ -367,7 +388,7 @@ function orthCheck() {
     if (en.propGet && en.propPut) ok('로그인 유지(30일) 저장소 준비됨'); else ng('스크립트 속성을 쓸 수 없습니다.');
   } catch (e) { ng('시트 확인 중 오류: ' + (e && e.message ? e.message : e)); }
 
-  try { orthSelfTest_(); ok('메모리 시험 통과 (선생님 순위표 · 로그인·첫 비밀번호 변경 · 30일 유지·연장·만료 · 비밀번호 바뀌면 풀림 · 하루 한 번만 셈 · 같은 묶음 두 번 막기 · 오답 노트 · 학교·전체 순위 · 학교 대항 합계 · 주가 바뀌면 이번 주 새로 · 퇴원생 빠짐)'); }
+  try { orthSelfTest_(); ok('메모리 시험 통과 (선생님 순위표 · 로그인·첫 비밀번호 변경 · 30일 유지·연장·만료 · 비밀번호 바뀌면 풀림 · 하루 한 번만 셈 · 같은 묶음 두 번 막기 · 오답 노트 · 학교·전체 순위 · 선생님 30일 토큰 · 학교 대항 합계 · 주가 바뀌면 이번 주 새로 · 퇴원생 빠짐)'); }
   catch (e) { ng('메모리 시험 중 오류: ' + (e && e.message ? e.message : e)); }
   log();
 }
@@ -458,6 +479,11 @@ function orthSelfTest_() {
   var tb = P({ action: 'orthBoard', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
   must(tb.ok && tb.board.school.week.top[0].n[0][0] === '나나나' && tb.board.school.week.of === 2 && !tb.board.school.week.me && tb.board.all.week.of === 3, '선생님 순위표: ' + JSON.stringify(tb.board || tb.error));
   must(!P({ action: 'orthBoard', token: tg, school: '가고' }).ok, '학생 토큰으로 선생님 순위표가 열림');
+  var tl = P({ action: 'orthTeachLogin', pw: 'orth-check' });
+  must(tl.ok && tl.token && tl.token.charAt(0) === 'a' && P({ action: 'orthBoard', token: tl.token, school: '가고' }).ok, '선생님 30일 토큰');
+  must(!P({ action: 'orthTeachLogin', pw: 'nope' }).ok && !P({ action: 'orthBoard', token: 'a0000', school: '가고' }).ok, '선생님 토큰 검사');
+  P({ action: 'orthLogout', token: tl.token });
+  must(!P({ action: 'orthBoard', token: tl.token, school: '가고' }).ok, '선생님 토큰 로그아웃');
 
   // 다음 날: 같은 문제를 다시 맞히면 또 셈
   T += day;

@@ -338,7 +338,7 @@ try{ const a=JSON.parse(lsGet(AKEY)||'null'); if(a && a.token && a.me && a.me.id
 let guest=false;      // 선생님 페이지(로그인 없이 학교 골라 보기)
 function ssGet(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
 function ssSet(k,v){ try{ if(v==null) sessionStorage.removeItem(k); else sessionStorage.setItem(k,v); }catch(e){} }
-let teachTok = ssGet('orth.admin') || '';   // 트래커 선생님 로그인(6시간)
+let teachTok = lsGet('orth.admin') || ssGet('orth.admin') || '';   // 선생님 페이지 토큰(orth.gs가 있으면 30일, 없으면 트래커 6시간)
 let srvT = {school:'', board:null, state:''};
 const BASE=()=>({school:null, src:null, srcKey:'', rng:['s','f','w','e'], type:null, n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0, pending:[], outbox:null, bs:{sc:'school', per:'week'}, sk:{last:'', n:0}, open:false});
 let skey='orth.v1', store=BASE();
@@ -610,9 +610,9 @@ function onLoginSubmit(ev){
     const pw=val('in-apw');
     if(!pw) return fail('비밀번호를 입력해 주세요.');
     busy();
-    api('adminLogin', {pw}).then(r=>{
+    api('orthTeachLogin', {pw}).then(r=> noServer(r) ? api('adminLogin', {pw}) : r).then(r=>{
       if(!r.ok) return fail(r.error);
-      teachTok=r.token; ssSet('orth.admin', r.token);
+      teachTok=r.token; lsSet('orth.admin', r.token); ssSet('orth.admin', null);
       resetL(); guest=true; useStore(); srvT={school:'', board:null, state:''}; renderPick();
     });
   } else if(f.id==='f-change'){
@@ -670,7 +670,8 @@ function renderPick(){
   const to=document.getElementById('tout'); if(to) to.onclick=leaveTeach;
 }
 function leaveTeach(){
-  guest=false; teachTok=''; ssSet('orth.admin', null); srvT={school:'', board:null, state:''}; sess=null;
+  if(API && teachTok && teachTok[0]==='a') api('orthLogout', {token:teachTok});
+  guest=false; teachTok=''; lsSet('orth.admin', null); ssSet('orth.admin', null); srvT={school:'', board:null, state:''}; sess=null;
   useStore(); resetL(); renderLogin('name');
 }
 // 선생님 페이지 순위표: 고른 학교 기준으로 서버에서 받아 옴
@@ -800,7 +801,7 @@ function renderHome(){
   const chs=document.getElementById('chs'); if(chs) chs.onclick=renderPick;
   const out=document.getElementById('out'); if(out) out.onclick=logout;
   const t2=document.getElementById('tout2'); if(t2) t2.onclick=leaveTeach;
-  const rt=document.getElementById('reteach'); if(rt) rt.onclick=()=>{ teachTok=''; ssSet('orth.admin', null); guest=false; resetL(); renderLogin('admin'); };
+  const rt=document.getElementById('reteach'); if(rt) rt.onclick=()=>{ teachTok=''; lsSet('orth.admin', null); ssSet('orth.admin', null); guest=false; resetL(); renderLogin('admin'); };
   const rl=document.getElementById('relog'); if(rl) rl.onclick=relogin;
   const ry=document.getElementById('retry'); if(ry) ry.onclick=()=>{ if(guest){ srvT={school:'', board:null, state:''}; renderHome(); } else { srv.state='loading'; renderHome(); refresh(false); } };
   document.getElementById('tog').onclick=()=>{ store.open=!store.open; save(); renderHome(); };
