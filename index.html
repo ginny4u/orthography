@@ -498,7 +498,9 @@ function buildPool(type, S){
 }
 const homePool = (type) => buildPool(type||store.type, scopeItems(srcSel(), allowedArts(store.rng)));
 // 틀린 곳 찾기·쓱쓱: 홈 버튼에서 바로 시작(지금 고른 범위로)
-function startMode(type){ const pool=homePool(type); if(!pool.length) return; startSession(sample(pool, store.n), {from:'home', type}); }
+const SWIPE_N=15;   // 쓱쓱 넘기기는 항상 15장
+function nFor(type){ return type==='swipe' ? SWIPE_N : store.n; }
+function startMode(type){ const pool=homePool(type); if(!pool.length) return; startSession(sample(pool, nFor(type)), {from:'home', type}); }
 // 조항 하나: 공통 문제 + 우리 학교 자료 중 그 조항 문제
 function artItems(n){
   const sc=store.school, S=scopeItems(slotsOf(sc).filter(x=>x.ready && x.id!=='base').map(x=>x.id), new Set());
@@ -811,7 +813,7 @@ function renderHome(){
     return '<button type="button" class="tcard'+(on?' on':'')+'" data-type="'+t.id+'" aria-pressed="'+on+'"'+(n?'':' disabled')+'>'+
       '<b>'+esc(t.label)+'</b><span>'+esc(t.desc)+'</span>'+(n?'':'<i>이 범위엔 없음</i>')+'</button>'; }).join('')+
     '<button type="button" class="tcard" id="towrong"'+(wrongN?'':' disabled')+'><b>오답만 다시</b><span>틀렸던 문제만 다시 풀어요. 맞히면 오답 노트에서 빠집니다.</span><i>'+(wrongN?(wrongN>15?'15문제씩 · 모두 '+wrongN+'개':wrongN+'문제'):'아직 없음')+'</i></button></div>';
-  const nQ = Math.min(counts[cur]||0, store.n);
+  const nQ = Math.min(counts[cur]||0, nFor(cur));
   const startBtn = cur
     ? '<button type="button" class="btn primary wide" id="start">'+esc(TYPES.find(t=>t.id===cur).label)+' '+nQ+'문제 시작</button>'
     : '<button type="button" class="btn primary wide" id="start" disabled>위에서 유형을 하나 골라 주세요</button>';
@@ -820,10 +822,10 @@ function renderHome(){
       : '<button type="button" class="chip" disabled>'+esc(x.label)+' 준비 중</button>').join('')+'</div>';
   const sub = sel.includes('base') ? '<div class="subscope"><div class="lab">기본 개념에서 풀 부분</div>'+chips(RANGES, store.rng, 'rng', true)+'</div>' : '';
   const srcs = sel.filter(id=>id!=='base').map(id=>'<li><b>'+SLOT_LABEL[id]+'</b>'+esc(schSrc(store.school, id).title)+'</li>').join('');
-  const summary = '범위: '+sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · 한 번에 '+store.n+'문제';
+  const summary = '범위: '+sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · 한 번에 '+(cur==='swipe'?SWIPE_N+'장':store.n+'문제');
   const settings = !store.open ? '' : '<div class="settings">'+
     '<h2 class="sec" style="margin-top:12px">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+
-    '<h2 class="sec">한 번에 풀 문제</h2>'+chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false)+
+    '<h2 class="sec">한 번에 풀 문제</h2>'+(cur==='swipe' ? '<p class="note" style="margin-top:0">쓱쓱 넘기기는 항상 '+SWIPE_N+'장씩 넘겨요.</p>' : chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false))+
     '<p class="note">틀린 문제와 안 푼 문제가 먼저 나옵니다.</p></div>';
   app.innerHTML =
    hero(bubbleText())+who+a2hsHTML()+
