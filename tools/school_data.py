@@ -274,6 +274,14 @@ DONGA_DY = dict(use='donga', title=DONGA['title'] + " + 부록 202~206쪽",
 
 # 자료(src)는 한 번만 싣고, 학교(map)는 tb 교과서 · pr 프린트 · ol 올림포스 자리에 자료 이름을 건다.
 # 아직 없는 자리는 비워 두면 화면에 '준비 중'으로 나온다.
+def _siot(w):
+    return sum(1 for ch in w if 0xAC00 <= ord(ch) <= 0xD7A3 and (ord(ch) - 0xAC00) % 28 == 19)
+# 사이시옷을 안 적는 쪽이 정답인 문제(반대말·해님·위층 등)는 '근거 조항' 문제로는 내지 않는다.
+# 안 적는 근거가 제30항이라고 하면 이상하니까.
+for _s in (MIRAE, DONGA, GONGHANG_PR, HANSEO_PR, MYUNGDUK_OL):
+    for _p in _s['picks']:
+        if _p['a'] == 30 and _siot(_p['o']) < _siot(_p['x']):
+            _p['nb'] = 1
 for _s in (MIRAE, DONGA, GONGHANG_PR, HANSEO_PR, MYUNGDUK_OL):
     for _p in _s['picks']:
         if _p['a'] not in _s['arts']:
