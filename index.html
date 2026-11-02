@@ -172,6 +172,7 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .wlist li{border-top:1px solid var(--rule);padding:18px 0 12px}
 .wlist .w1{font-size:16px;line-height:2}
 .wlist .w2{font-size:12px;line-height:1.5;color:var(--muted)}
+.wlist .was{margin-left:8px;font-size:14px;color:var(--muted)}.wlist .was s{text-decoration-color:var(--muted)}
 .row{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
 .row .btn{flex:1 1 auto}
 
@@ -1042,6 +1043,12 @@ function renderResult(){
       if(r.q.kind==='swipe') return '<li><div class="w1">'+sentFilled(it,'fix',it.x)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
       return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
     }).join('')+'</ul>';
+  }
+  // 쓱쓱은 맞히면 바로 넘어가서 설명을 볼 틈이 없으니, 끝나고 맞힌 카드까지 한눈에 복습
+  const right = sess.res.filter(r=>r.ok && r.q.kind==='swipe');
+  if(right.length){
+    list+='<h2 class="sec">맞힌 카드 한눈에</h2><ul class="wlist ok">'+right.map(r=>{ const it=r.q.it, loc = it.l ? ' · '+it.l : '';
+      return '<li><div class="w1">'+sentFilled(it,'ok')+'<span class="was"><s>'+esc(it.x)+'</s></span></div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>'; }).join('')+'</ul>';
   }
   const kb = c===n ? '전부 맞혔어요. 이 기세로 한 번 더?' : wrong.length<=2 ? '거의 다 맞혔어요. 틀린 것만 다시 볼까요?' : '틀린 문제는 오답 노트에 들어갔어요. 다시 맞히면 빠집니다.';
   const stamp = c===n && n>=5 ? '<img class="stampimg" src="stamp.webp" alt="참 잘했어요">' : '';
