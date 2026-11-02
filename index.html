@@ -498,7 +498,7 @@ function buildPool(type, S){
 }
 const homePool = (type) => buildPool(type||store.type, scopeItems(srcSel(), allowedArts(store.rng)));
 // 틀린 곳 찾기·쓱쓱: 홈 버튼에서 바로 시작(지금 고른 범위로)
-function startMode(type){ const pool=homePool(type); if(!pool.length) return; startSession(sample(pool, type==='swipe'?Math.max(store.n,15):store.n), {from:'home', type}); }
+function startMode(type){ const pool=homePool(type); if(!pool.length) return; startSession(sample(pool, store.n), {from:'home', type}); }
 // 조항 하나: 공통 문제 + 우리 학교 자료 중 그 조항 문제
 function artItems(n){
   const sc=store.school, S=scopeItems(slotsOf(sc).filter(x=>x.ready && x.id!=='base').map(x=>x.id), new Set());
@@ -811,7 +811,7 @@ function renderHome(){
     return '<button type="button" class="tcard'+(on?' on':'')+'" data-type="'+t.id+'" aria-pressed="'+on+'"'+(n?'':' disabled')+'>'+
       '<b>'+esc(t.label)+'</b><span>'+esc(t.desc)+'</span>'+(n?'':'<i>이 범위엔 없음</i>')+'</button>'; }).join('')+
     '<button type="button" class="tcard" id="towrong"'+(wrongN?'':' disabled')+'><b>오답만 다시</b><span>틀렸던 문제만 다시 풀어요. 맞히면 오답 노트에서 빠집니다.</span><i>'+(wrongN?(wrongN>15?'15문제씩 · 모두 '+wrongN+'개':wrongN+'문제'):'아직 없음')+'</i></button></div>';
-  const nQ = Math.min(counts[cur]||0, cur==='swipe' ? Math.max(store.n,15) : store.n);
+  const nQ = Math.min(counts[cur]||0, store.n);
   const startBtn = cur
     ? '<button type="button" class="btn primary wide" id="start">'+esc(TYPES.find(t=>t.id===cur).label)+' '+nQ+'문제 시작</button>'
     : '<button type="button" class="btn primary wide" id="start" disabled>위에서 유형을 하나 골라 주세요</button>';
