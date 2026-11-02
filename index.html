@@ -739,7 +739,7 @@ const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
 const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true;
 function a2hsHTML(){
   if(!isIOS || standalone || lsGet('orth.a2hs')==='x') return '';
-  return '<div class="a2hs"><span>홈 화면에 추가하면 앱처럼 열려요. 아래 <b>공유</b> 버튼 → <b>홈 화면에 추가</b></span><button type="button" class="linkbtn" id="a2hsx">닫기</button></div>';
+  return '<div class="a2hs"><span>홈 화면에 추가하면 앱처럼 열려요. 아래 <b>⋯</b> → <b>공유</b> → <b>홈 화면에 추가</b></span><button type="button" class="linkbtn" id="a2hsx">닫기</button></div>';
 }
 function renderHome(){
   if(!store.school) return renderPick();
