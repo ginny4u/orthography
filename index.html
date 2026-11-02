@@ -502,6 +502,7 @@ function prepare(q){
   if(q.kind==='pick') q.opts = shuffle([q.it.o, q.it.x]);
   if(q.kind==='basis') q.opts = basisOptions(q.it.a);
   if(q.kind==='swipe') q.show = Math.random()<.5;   // true면 바른 표기를 보여 줌
+  if(q.kind==='spot'){ q.bad = {}; q.it.t.forEach((b,bi)=>b[1].forEach((p,pi)=>{ if(typeof p!=='string' && p.o) q.bad[bi+'-'+pi] = Math.random()<.6; })); }  // 틀리게 보여 줄 자리(없을 수도 있음)
   return q;
 }
 
@@ -857,10 +858,11 @@ function renderQ(){
     body='<p class="qsent">'+sentFilled(it,'mark')+'</p><p class="note" style="margin:-8px 0 14px">밑줄 친 표기의 근거가 되는 조항을 고르세요.</p>'+
       '<div class="opts">'+q.opts.map((a,k)=>'<button type="button" class="opt" data-o="'+k+'"><b>제'+a+'항</b><small>'+esc(ART[a].k)+'</small></button>').join('')+'</div>';
   } else if(q.kind==='spot'){
-    body='<p class="note" style="margin:0 0 12px">틀린 표기를 모두 눌러 고르세요.</p><div class="chat">'+it.t.map((b,bi)=>
+    body='<p class="note" style="margin:0 0 12px">틀린 표기가 있으면 모두 눌러 고르세요. 하나도 없을 수도 있어요.</p><div class="chat">'+it.t.map((b,bi)=>
       '<div class="msg '+b[0]+'"><div class="bb">'+b[1].map((p,pi)=> typeof p==='string'
         ? p.split(/(\s+)/).map(w=>/^\s+$/.test(w)?w:(w?'<button type="button" class="tk" data-t="'+bi+'-'+pi+'-'+esc0(w)+'">'+esc(w)+'</button>':'')).join('')
-        : '<button type="button" class="tk" data-t="'+bi+'-'+pi+'" data-e="'+(p.o?'1':'')+'">'+esc(p.x)+'</button>').join('')+'</div></div>').join('')+'</div>'+
+        : (q.bad[bi+'-'+pi] ? '<button type="button" class="tk" data-t="'+bi+'-'+pi+'" data-e="1">'+esc(p.x)+'</button>'
+                            : '<button type="button" class="tk" data-t="'+bi+'-'+pi+'" data-r="1">'+esc(p.o)+'</button>')).join('')+'</div></div>').join('')+'</div>'+
       '<button type="button" class="btn primary wide next" id="chk">확인</button>';
   } else if(q.kind==='swipe'){
     const word = q.show ? it.o : it.x;
@@ -930,16 +932,23 @@ function answerBlank(q, val){
 
 // 틀린 곳 찾기: 틀린 것을 다 고르고 맞는 것은 안 골라야 정답
 function spotErrors(it){ const out=[]; it.t.forEach(b=>b[1].forEach(p=>{ if(typeof p!=='string' && p.o) out.push(p); })); return out; }
-function spotWhy(it){ return spotErrors(it).map(p=>'<div class="why" style="margin-top:8px"><b><s style="color:var(--muted)">'+esc(p.x)+'</s> → '+esc(p.o)+'</b> · 제'+p.a+'항 '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>').join(''); }
+const whyOne = (p, right) => '<div class="why" style="margin-top:8px"><b>'+(right ? esc(p.o)+' (맞는 표기)' : '<s style="color:var(--muted)">'+esc(p.x)+'</s> → '+esc(p.o))+'</b> · 제'+p.a+'항 '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>';
+function spotWhy(it, bad, oops){
+  // bad: 이번에 틀리게 보여 준 자리, oops: 맞는데 고른 자리. 둘 다 없으면(결과 화면 등) 전부
+  const out=[]; it.t.forEach((b,bi)=>b[1].forEach((p,pi)=>{ if(typeof p==='string'||!p.o) return; const k=bi+'-'+pi;
+    if(!bad) out.push(whyOne(p,false)); else if(bad[k]) out.push(whyOne(p,false)); else if(oops && oops[k]) out.push(whyOne(p,true)); }));
+  return out.join('');
+}
 function answerSpot(q){
-  const tks=[...app.querySelectorAll('.tk')]; let miss=0, extra=0;
+  const tks=[...app.querySelectorAll('.tk')]; let miss=0, extra=0; const oops={};
   tks.forEach(b=>{ const e=b.dataset.e==='1', sel=b.classList.contains('sel');
-    if(e && sel) b.classList.add('hit'); else if(e && !sel){ b.classList.add('missed'); miss++; } else if(!e && sel){ b.classList.add('oops'); extra++; }
+    if(e && sel) b.classList.add('hit'); else if(e && !sel){ b.classList.add('missed'); miss++; } else if(!e && sel){ b.classList.add('oops'); extra++; if(b.dataset.r) oops[b.dataset.t]=1; }
     b.disabled=true; });
   document.getElementById('chk').remove();
-  const ok = !miss && !extra;
-  const head = ok ? '' : '<div class="note" style="margin:0 0 4px">'+(miss?'못 찾은 것 '+miss+'개':'')+(miss&&extra?' · ':'')+(extra?'맞는데 고른 것 '+extra+'개':'')+'</div>';
-  afterAnswer(ok, q, head+spotWhy(q.it));
+  const ok = !miss && !extra, none = !Object.keys(q.bad).some(k=>q.bad[k]);
+  const head = ok ? (none?'<div class="note" style="margin:0 0 4px">이 대화엔 틀린 곳이 없었어요.</div>':'') : '<div class="note" style="margin:0 0 4px">'+(miss?'못 찾은 것 '+miss+'개':'')+(miss&&extra?' · ':'')+(extra?'맞는데 고른 것 '+extra+'개':'')+(none&&!miss?' · 이 대화엔 틀린 곳이 없었어요.':'')+'</div>';
+  afterAnswer(ok, q, head+spotWhy(q.it, q.bad, oops));
+  sess.res[sess.res.length-1].oops = oops;
   app.querySelectorAll('.tk.hit, .tk.missed').forEach(b=>{ const p=findPart(q.it, b.dataset.t); if(p) b.innerHTML='<s>'+esc(p.x)+'</s><b>'+esc(p.o)+'</b>'; });
 }
 function findPart(it, t){ const [bi,pi]=t.split('-').map(Number); const p=it.t[bi]&&it.t[bi][1][pi]; return p && typeof p!=='string' ? p : null; }
@@ -990,7 +999,7 @@ function renderResult(){
       const it=r.q.it;
       if(r.q.kind==='blank') return '<li><div class="w1">'+esc(it.b)+'<span class="fix"><s>'+esc(r.chosen||'')+'</s><b>'+esc(it.k)+'</b></span>'+esc(it.f)+'</div><div class="w2">제'+it.a+'항 · '+esc(ART[it.a].k)+'</div></li>';
       const loc = it.l ? ' · '+it.l : '';
-      if(r.q.kind==='spot') return '<li>'+spotWhy(it)+'</li>';
+      if(r.q.kind==='spot') return '<li>'+(spotWhy(it, r.q.bad, r.oops)||'<div class="w2">틀린 곳이 없는 대화였는데 고른 것이 있었어요.</div>')+'</li>';
       if(r.q.kind==='swipe') return '<li><div class="w1">'+sentFilled(it,'fix',it.x)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
       if(r.q.kind==='basis') return '<li><div class="w1">'+sentFilled(it,'mark')+'</div><div class="w2">근거: '+esc('제'+it.a+'항'+partLabel(it))+' · '+esc(ART[it.a].k+loc)+'</div></li>';
       return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
