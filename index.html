@@ -676,7 +676,7 @@ function vsHTML(){
   const per = store.bs.per==='total' ? 'total' : 'week', key = per==='week'?'w':'t', pk = per==='week'?'pw':'pt';
   const rows = sch.map(x=>({s:x.s, n:x.n, p:x[pk], d:x[key], avg: x.n ? x[key]/x.n : 0})).sort((a,b)=>b.avg-a.avg || b.d-a.d);
   const max = Math.max(...rows.map(r=>r.avg), 0.0001);
-  return '<h2 class="sec">학교 대항 · '+(per==='week'?'이번 주':'누적')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
+  return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'누적')+'</h2>'<div class="card"><div class="vs">'+rows.map((r,i)=>
     '<div class="v'+(r.s===store.school?' me':'')+'"><span class="s">'+(i+1)+'위 '+esc(r.s)+'</span><span class="m"><i style="width:'+(r.avg/max*100)+'%"></i></span>'+
     '<span class="d">1인당 <b>'+(Math.round(r.avg*10)/10)+'개</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
     '</div><p class="note">학교 재원생 전체 기준 1인당 맞힌 문제 수입니다. 안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
