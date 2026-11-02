@@ -645,7 +645,7 @@ function bubbleText(){
   const sch = srv.board && srv.board.sch;
   if(sch && sch.length>1){
     const rows = sch.map(x=>({s:x.s, avg:x.n?x.w/x.n:0})).sort((a,b)=>b.avg-a.avg), i = rows.findIndex(r=>r.s===store.school);
-    if(i>0) return rows[0].s+'보다 우리 학교가 1인당 '+(Math.round((rows[0].avg-rows[i].avg)*10)/10)+'개 뒤져요. 한 문제가 평균을 올립니다.';
+    if(i>0) return rows[0].s+'보다 우리 학교가 1인당 '+(Math.round((rows[0].avg-rows[i].avg)*10)/10)+'개 뒤처져요. 한 문제가 평균을 올립니다.';
     if(i===0 && rows[1] && rows[0].avg>0) return '학교 대항 1위예요. '+rows[1].s+'가 '+(Math.round((rows[0].avg-rows[1].avg)*10)/10)+'개 차이로 따라와요.';
   }
   if(t) return '오늘 '+t+'문제 맞혔어요. 조금만 더?';
