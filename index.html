@@ -135,6 +135,9 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .stamp{position:absolute;top:14px;padding:4px 10px;border:2px solid;border-radius:8px;font-size:14px;font-weight:700;line-height:normal;opacity:0;pointer-events:none}
 .stamp.ok{right:14px;color:var(--accent);border-color:var(--accent);transform:rotate(12deg)}
 .stamp.no{left:14px;color:var(--muted);border-color:var(--muted);transform:rotate(-12deg)}
+.stamp.big{top:10px;right:12px;left:auto;font-size:18px;padding:6px 12px;border-width:3px;border-radius:10px;opacity:0;animation:stampin .3s cubic-bezier(.2,1.4,.4,1) forwards}
+.stamp.big.no{color:var(--muted);border-color:var(--muted)}
+@keyframes stampin{from{opacity:0;transform:rotate(12deg) scale(2)}to{opacity:1;transform:rotate(12deg) scale(1)}}
 /* 결과 */
 .scorebox{position:relative}
 .stampimg{position:absolute;right:0;top:-24px;width:150px;height:150px;transform:rotate(-12deg) scale(2.2);opacity:0;animation:stamp .45s cubic-bezier(.2,1.4,.4,1) .25s forwards;pointer-events:none}
@@ -949,9 +952,10 @@ function bindSwipe(q){
 function answerSwipe(q, yes){
   const it=q.it, ok = yes===q.show;
   if(sess.unkey){ sess.unkey(); sess.unkey=null; }
-  const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, q.show?'ok':'fix', it.x)+'</p></div>';
-  if(ok && sess.i+1<sess.qs.length){ record(q, true); sess.res.push({q, ok:true}); const fb=document.getElementById('fb'); fb.innerHTML='<div class="okword">정답</div>'; setTimeout(()=>{ if(sess && sess.qs[sess.i]===q){ sess.i++; renderQ(); } }, 650); return; }
-  afterAnswer(ok, q, ok?'':whyLine(it));
+  const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, q.show?'ok':'fix', it.x)+'</p>'+
+    '<span class="stamp big '+(ok?'ok':'no')+'">'+(ok?'정답':'틀림')+'</span></div>';
+  if(ok){ record(q, true); sess.res.push({q, ok:true}); setTimeout(()=>{ if(sess && sess.qs[sess.i]===q){ sess.i++; sess.i<sess.qs.length ? renderQ() : renderResult(); } }, 700); return; }
+  afterAnswer(ok, q, whyLine(it));
   if(!ok) sess.res[sess.res.length-1].chosen = q.show ? it.o : it.x;
 }
 
