@@ -48,6 +48,13 @@ h2.sec{font-size:.78rem;letter-spacing:.1em;color:var(--muted);font-weight:600;m
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1px solid var(--rule);background:var(--paper);border-radius:999px;padding:6px 13px;font-size:.9rem;line-height:1.3}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip:disabled{cursor:default;border-style:dashed;color:var(--muted);background:transparent}
+.subscope{margin-top:10px;padding-left:12px;border-left:2px solid var(--rule)}
+.subscope .lab{font-size:.78rem;color:var(--muted);margin-bottom:6px}
+.subscope .chip{padding:4px 11px;font-size:.84rem}
+.srcs{list-style:none;padding:0;margin:10px 0 0;font-size:.82rem;color:var(--muted);line-height:1.55}
+.srcs li{margin-top:3px;word-break:keep-all}
+.srcs b{color:var(--ink);font-weight:600;margin-right:6px}
 .note{font-size:.82rem;color:var(--muted);margin:8px 0 0}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;padding:11px 18px;border:1px solid var(--ink);background:var(--paper);font-weight:600}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -105,6 +112,7 @@ details.art summary{list-style:none;display:flex;align-items:baseline;gap:10px;p
 details.art summary::-webkit-details-marker{display:none}
 details.art summary .no{font-family:var(--serif);font-weight:700;min-width:3.4em}
 details.art summary .k{flex:1}
+details.art summary .tag{display:inline-block;font-size:.7rem;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:0 7px;margin-left:6px;white-space:nowrap;vertical-align:1px}
 details.art summary .cnt{font-size:.78rem;color:var(--muted)}
 details.art[open] summary .no{color:var(--accent)}
 .artbody{padding:2px 2px 18px}
@@ -179,6 +187,7 @@ footer{word-break:keep-all;margin-top:44px;padding-top:12px;border-top:1px solid
   <footer>조항 원문과 예시는 국립국어원 ‘한글 맞춤법’ 기준입니다.</footer>
 </div>
 <script src="data.js"></script>
+<script src="school.js"></script>
 <script>
 (function(){
 'use strict';
@@ -191,8 +200,10 @@ const API = 'https://script.google.com/macros/s/AKfycbxN_zUg62UVzI-xkiB_-CxSnZND
 
 /* ---------- 기본 데이터 */
 const SCHOOLS = ['공항고','동양고','명덕고','한서고','경복여고'];
-const SCH = window.ORTH_SCHOOL || {};               // 학교별 교과서·프린트 범위(추가 예정)
+const SS = window.ORTH_SCHOOL || {src:{}, map:{}};  // 학교별 교과서·프린트·올림포스 범위(school.js)
 const PARTS = sc => ['기본 개념','교과서','프린트'].concat(sc==='경복여고'||sc==='명덕고' ? ['올림포스'] : []);
+const SLOTS = [{id:'base', label:'기본 개념'}, {id:'tb', label:'교과서'}, {id:'pr', label:'프린트'}, {id:'ol', label:'올림포스'}];
+const SLOT_LABEL = {}; SLOTS.forEach(x=>SLOT_LABEL[x.id]=x.label);
 const ART = {}; D.arts.forEach(a=>ART[a.n]=a);
 const RANGES = [
   {id:'s', label:'총칙·소리', ch:['c1','c3']},
@@ -209,6 +220,17 @@ function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charC
 const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
 const BLANKS = D.blanks.map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
 const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p;}); BLANKS.forEach(b=>BYID[b.id]=b);
+// 학교 자료 문제: l = 자료 위치(교과서 118쪽 등), nb = 근거 조항 문제로는 내지 않음
+const SRC = {};
+Object.keys(SS.src).forEach(key=>{
+  let s = SS.src[key]; if(s.use) s = Object.assign({}, SS.src[s.use], {title:s.title, arts:s.arts});
+  const P = (s.picks||[]).map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
+  const B = (s.blanks||[]).map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
+  P.forEach(p=>{ BYID[p.id]=p; if(!p.nb) BYID['r'+p.id]=p; }); B.forEach(b=>BYID[b.id]=b);
+  SRC[key] = {title:s.title, arts:new Set(s.arts||[]), P, B};
+});
+const schSrc = (sc, slot) => { const m=SS.map[sc]; return m && m[slot] && SRC[m[slot]] || null; };
+const slotsOf = sc => SLOTS.filter(x=>PARTS(sc).includes(x.label)).map(x=>Object.assign({ready: x.id==='base' || !!schSrc(sc, x.id)}, x));
 
 /* ---------- 저장: 로그인한 학생마다 따로, 로그인 없이 둘러보면 이 폰 공용 */
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -221,7 +243,7 @@ function ssGet(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null
 function ssSet(k,v){ try{ if(v==null) sessionStorage.removeItem(k); else sessionStorage.setItem(k,v); }catch(e){} }
 let teachTok = ssGet('orth.admin') || '';   // 트래커 선생님 로그인(6시간)
 let srvT = {school:'', board:null, state:''};
-const BASE=()=>({school:null, rng:['s','f','w','e'], type:'pick', n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0, pending:[], outbox:null, bs:{sc:'school', per:'week'}});
+const BASE=()=>({school:null, src:null, srcKey:'', rng:['s','f','w','e'], type:'pick', n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0, pending:[], outbox:null, bs:{sc:'school', per:'week'}});
 let skey='orth.v1', store=BASE();
 function useStore(){
   skey = auth ? 'orth.v1:'+auth.me.id : 'orth.v1';
@@ -335,18 +357,43 @@ function artLabel(n){ const a=ART[n]; return '제'+n+'항'+(a?' · '+a.k:''); }
 function partLabel(p){ return p && p.p ? ' '+(/^\d/.test(p.p)?p.p:'['+p.p+']') : ''; }
 const hero = t => '<div class="hero"><img src="char.webp" alt="" width="76" height="95"><div class="bubble">'+t+'</div></div>';
 
-/* ---------- 범위 */
+/* ---------- 범위: 기본 개념(장별) + 우리 학교 교과서·프린트·올림포스(그 자료 문제 + 관련 조항 문제 전부) */
 function allowedArts(rng){
   const chs = new Set(); RANGES.filter(r=>rng.includes(r.id)).forEach(r=>r.ch.forEach(c=>chs.add(c)));
   return new Set(D.arts.filter(a=>chs.has(a.c)).map(a=>a.n));
 }
-function buildPool(type, arts){
-  const P = PICKS.filter(p=>arts.has(p.a)), B = BLANKS.filter(b=>arts.has(b.a));
+// 고른 범위(자료가 새로 생기면 다시 전부 고른 상태로 시작)
+function srcSel(){
+  const ready = slotsOf(store.school).filter(x=>x.ready).map(x=>x.id), key = store.school+':'+ready.join();
+  if(store.srcKey!==key || !Array.isArray(store.src)){ store.src=ready.slice(); store.srcKey=key; }
+  const sel = store.src.filter(id=>ready.includes(id));
+  return sel.length ? sel : ready;
+}
+function scopeItems(sel, arts){
+  // arts: 기본 개념에서 쓸 조항(장 고르기), sel: 고른 범위. 학교 자료 문제를 먼저 넣어 같은 문제면 자료 위치가 붙은 쪽을 씀
+  const P = new Map(), B = new Map();
+  const addP = p=>{ if(!P.has(p.id)) P.set(p.id, p); }, addB = b=>{ if(!B.has(b.id)) B.set(b.id, b); };
+  const want = new Set();
+  sel.forEach(slot=>{ if(slot==='base') return; const s=schSrc(store.school, slot); if(!s) return;
+    s.P.forEach(addP); s.B.forEach(addB); s.arts.forEach(n=>want.add(n)); });
+  if(sel.includes('base')) arts.forEach(n=>want.add(n));
+  PICKS.forEach(p=>{ if(want.has(p.a)) addP(p); }); BLANKS.forEach(b=>{ if(want.has(b.a)) addB(b); });
+  return {P:[...P.values()], B:[...B.values()]};
+}
+function buildPool(type, S){
   const pick = p=>({kind:'pick', it:p, id:p.id}), basis = p=>({kind:'basis', it:p, id:'r'+p.id}), blank = b=>({kind:'blank', it:b, id:b.id});
-  if(type==='pick') return P.map(pick);
-  if(type==='basis') return P.map(basis);
-  if(type==='blank') return B.map(blank);
-  return P.map(p=>Math.random()<.55?pick(p):basis(p)).concat(B.map(blank));
+  if(type==='pick') return S.P.map(pick);
+  if(type==='basis') return S.P.filter(p=>!p.nb).map(basis);
+  if(type==='blank') return S.B.map(blank);
+  return S.P.map(p=>(p.nb || Math.random()<.55)?pick(p):basis(p)).concat(S.B.map(blank));
+}
+const homePool = () => buildPool(store.type, scopeItems(srcSel(), allowedArts(store.rng)));
+// 조항 하나: 공통 문제 + 우리 학교 자료 중 그 조항 문제
+function artItems(n){
+  const sc=store.school, S=scopeItems(slotsOf(sc).filter(x=>x.ready && x.id!=='base').map(x=>x.id), new Set());
+  const P=S.P.filter(p=>p.a===n), B=S.B.filter(b=>b.a===n), ids=new Set(P.map(p=>p.id).concat(B.map(b=>b.id)));
+  PICKS.forEach(p=>{ if(p.a===n && !ids.has(p.id)) P.push(p); }); BLANKS.forEach(b=>{ if(b.a===n && !ids.has(b.id)) B.push(b); });
+  return {P, B};
 }
 function weight(id){ const s=store.st[id]; if(store.wrong[id]) return 5; if(!s) return 3; if(s.w>s.c) return 3; return 1; }
 function sample(pool, n){
@@ -568,8 +615,12 @@ function boardHTML(){
 function renderHome(){
   if(!store.school) return renderPick();
   view='home'; setTabs(true);
-  const arts = allowedArts(store.rng), pool = buildPool(store.type, arts);
-  const schNote = !SCH[store.school] ? '<p class="note">'+esc(store.school)+' '+PARTS(store.school).slice(1).join('·')+' 범위는 아직 준비 중입니다. 지금은 기본 개념으로 연습합니다.</p>' : '';
+  const pool = homePool(), sel = srcSel(), slots = slotsOf(store.school);
+  const srcChips = '<div class="chips">'+slots.map(x=> x.ready
+      ? '<button type="button" class="chip" data-src="'+x.id+'" aria-pressed="'+sel.includes(x.id)+'">'+esc(x.label)+'</button>'
+      : '<button type="button" class="chip" disabled>'+esc(x.label)+' 준비 중</button>').join('')+'</div>';
+  const sub = sel.includes('base') ? '<div class="subscope"><div class="lab">기본 개념에서 풀 부분</div>'+chips(RANGES, store.rng, 'rng', true)+'</div>' : '';
+  const srcs = sel.filter(id=>id!=='base').map(id=>'<li><b>'+SLOT_LABEL[id]+'</b>'+esc(schSrc(store.school, id).title)+'</li>').join('');
   const wrongN = Object.keys(store.wrong).length;
   const who = auth
     ? '<p class="schoolrow"><b>'+esc(auth.me.name)+'</b> · '+esc(store.school)+' 범위 · <button type="button" class="linkbtn" id="out">로그아웃</button></p>'
@@ -577,8 +628,8 @@ function renderHome(){
       (guest && API ? ' · <button type="button" class="linkbtn" id="tout2">선생님 페이지 나가기</button>' : '')+'</p>';
   if(guest && teachTok && API && (srvT.school!==store.school || (!srvT.board && !srvT.state))) loadTeachBoard();
   app.innerHTML =
-   hero('느낌이 아니라 조항을 근거로 골라 보세요.')+who+schNote+
-   '<h2 class="sec">범위</h2>'+chips(RANGES, store.rng, 'rng', true)+
+   hero('느낌이 아니라 조항을 근거로 골라 보세요.')+who+
+   '<h2 class="sec">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+
    '<h2 class="sec">유형</h2>'+chips(TYPES, store.type, 'type', false)+
    '<h2 class="sec">한 번에 풀 문제</h2>'+chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false)+
    '<p class="note">이 범위 문제 '+pool.length+'개 · 틀린 문제와 안 푼 문제가 먼저 나옵니다.</p>'+
@@ -590,6 +641,10 @@ function renderHome(){
   const t2=document.getElementById('tout2'); if(t2) t2.onclick=leaveTeach;
   const rt=document.getElementById('reteach'); if(rt) rt.onclick=()=>{ teachTok=''; ssSet('orth.admin', null); guest=false; resetL(); renderLogin('admin'); };
   const rl=document.getElementById('relog'); if(rl) rl.onclick=relogin;
+  app.querySelectorAll('[data-src]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.src, cur=srcSel().slice(), i=cur.indexOf(id);
+    if(i>=0){ if(cur.length>1) cur.splice(i,1); } else cur.push(id);
+    store.src=cur; save(); renderHome(); });
   app.querySelectorAll('[data-rng]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.rng, i=store.rng.indexOf(id);
     if(i>=0){ if(store.rng.length>1) store.rng.splice(i,1); } else store.rng.push(id);
@@ -617,7 +672,7 @@ function startWrong(){
   startSession(shuffle(qs).slice(0,15), {from:'wrong'});
 }
 function startArt(n){
-  const pool = buildPool(PICKS.some(p=>p.a===n)?'mix':'blank', new Set([n]));
+  const S = artItems(n), pool = buildPool(S.P.length?'mix':'blank', S);
   startSession(sample(pool, Math.min(10,pool.length)), {from:'art', n});
 }
 // 누적 정답은 같은 문제를 하루에 한 번만 셈(서버 순위와 같은 기준)
@@ -660,7 +715,7 @@ function renderQ(){
   app.innerHTML =
     '<div class="qtop"><span>'+(sess.i+1)+' / '+n+'</span><button type="button" class="linkbtn" id="quit">그만하기</button></div>'+
     '<div class="bar"><i style="width:'+(sess.i/n*100)+'%"></i></div>'+
-    '<div class="qkind">'+KIND_LABEL[q.kind]+'</div>'+body+'<div class="fb" id="fb"></div>';
+    '<div class="qkind">'+KIND_LABEL[q.kind]+(it.l?' · '+esc(it.l):'')+'</div>'+body+'<div class="fb" id="fb"></div>';
   document.getElementById('quit').onclick=()=>{ sess.res.length?renderResult():go('practice'); };
   if(q.kind==='blank'){
     const inp=document.getElementById('bi'); inp.focus();
@@ -714,8 +769,9 @@ function renderResult(){
     list='<h2 class="sec">틀린 문제</h2><ul class="wlist">'+wrong.map(r=>{
       const it=r.q.it;
       if(r.q.kind==='blank') return '<li><div class="w1">'+esc(it.b)+'<span class="fix"><s>'+esc(r.chosen||'')+'</s><b>'+esc(it.k)+'</b></span>'+esc(it.f)+'</div><div class="w2">제'+it.a+'항 · '+esc(ART[it.a].k)+'</div></li>';
-      if(r.q.kind==='basis') return '<li><div class="w1">'+sentFilled(it,'mark')+'</div><div class="w2">근거: '+esc('제'+it.a+'항'+partLabel(it))+' · '+esc(ART[it.a].k)+'</div></li>';
-      return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it))+' · '+esc(it.w)+'</div></li>';
+      const loc = it.l ? ' · '+it.l : '';
+      if(r.q.kind==='basis') return '<li><div class="w1">'+sentFilled(it,'mark')+'</div><div class="w2">근거: '+esc('제'+it.a+'항'+partLabel(it))+' · '+esc(ART[it.a].k+loc)+'</div></li>';
+      return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
     }).join('')+'</ul>';
   }
   app.innerHTML='<div class="qkind">결과</div><p class="score">'+c+' <span>/ '+n+'</span></p>'+list+
@@ -725,7 +781,7 @@ function renderResult(){
   document.getElementById('again').onclick=()=>{
     if(sess.meta.from==='art') return startArt(sess.meta.n);
     if(sess.meta.from==='wrong') return startWrong();
-    startSession(sample(buildPool(store.type, allowedArts(store.rng)), store.n), {from:'home'});
+    startSession(sample(homePool(), store.n), {from:'home'});
   };
   document.getElementById('home2').onclick=()=>{ sess=null; go('practice'); };
   flush();
@@ -734,13 +790,17 @@ function renderResult(){
 /* ---------- 조항 카드 */
 function renderRules(){
   view='rules'; setTabs(true);
-  const cnt={}; PICKS.forEach(p=>cnt[p.a]=(cnt[p.a]||0)+1); BLANKS.forEach(b=>cnt[b.a]=(cnt[b.a]||0)+1);
-  let html='<p class="note" style="margin-top:0">조항을 하나씩 펼쳐 원문 → 핵심 → 예시 순으로 보세요. 이해가 어려우면 아래 선행 문법부터 복습하세요.</p>';
+  const sc=store.school, ready=slotsOf(sc).filter(x=>x.ready && x.id!=='base');
+  const all=scopeItems(['base'].concat(ready.map(x=>x.id)), new Set(D.arts.map(a=>a.n)));
+  const cnt={}; all.P.forEach(p=>cnt[p.a]=(cnt[p.a]||0)+1); all.B.forEach(b=>cnt[b.a]=(cnt[b.a]||0)+1);
+  const tag = n => { const t=ready.filter(x=>schSrc(sc, x.id).arts.has(n)).map(x=>x.label); return t.length?'<span class="tag">'+t.join('·')+'</span>':''; };
+  let html='<p class="note" style="margin-top:0">조항을 하나씩 펼쳐 원문 → 핵심 → 예시 순으로 보세요. 이해가 어려우면 아래 선행 문법부터 복습하세요.'+
+    (ready.length?' '+esc(sc)+' 시험 범위에 드는 조항에는 '+ready.map(x=>'‘'+x.label+'’').join('·')+' 표시가 있습니다.':'')+'</p>';
   D.chapters.forEach(([cid, name, no])=>{
     const arts=D.arts.filter(a=>a.c===cid); if(!arts.length) return;
     html+='<div class="chap"><span>'+esc(no)+'</span>'+esc(name)+'</div>';
     arts.forEach(a=>{
-      html+='<details class="art" id="a'+a.n+'"><summary><span class="no">제'+a.n+'항</span><span class="k">'+esc(a.k)+'</span><span class="cnt">'+(cnt[a.n]||0)+'문제</span></summary><div class="artbody">'+
+      html+='<details class="art" id="a'+a.n+'"><summary><span class="no">제'+a.n+'항</span><span class="k">'+esc(a.k)+tag(a.n)+'</span><span class="cnt">'+(cnt[a.n]||0)+'문제</span></summary><div class="artbody">'+
         '<div class="law">'+esc(a.t)+a.sub.map(s=>'<span class="sub"><b>'+esc(/^\d/.test(s[0])?s[0]+'.':'['+s[0]+']')+'</b>'+esc(s[1])+'</span>').join('')+'</div>'+
         '<p class="core">'+esc(a.core)+'</p>'+
         a.ex.map(g=>'<div class="exg"><div class="lab">'+esc(g[0])+'</div><div class="ex">'+g[1].map(w=>'<span>'+esc(w)+'</span>').join('')+'</div></div>').join('')+
