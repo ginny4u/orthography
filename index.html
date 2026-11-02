@@ -1012,7 +1012,9 @@ function bindSwipe(q){
 function answerSwipe(q, yes){
   const it=q.it, ok = yes===q.show;
   if(sess.unkey){ sess.unkey(); sess.unkey=null; }
-  const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, q.show?'ok':'fix', it.x)+'</p>'+
+  // 틀린 표기를 보고 '틀림'으로 맞게 넘긴 경우에도 교정 표시(취소선+빨간 글씨)가 뜨는데, 오답 표시로 오해하기 쉬워 한 줄 덧붙인다
+  const cap = ok && !q.show ? '<p class="note" style="margin:10px 0 0">틀린 표기를 잘 찾았어요. 바른 표기는 <b>'+esc(it.o)+'</b></p>' : '';
+  const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, q.show?'ok':'fix', it.x)+'</p>'+cap+
     '<img class="stampbig" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'"></div>';
   const hint=app.querySelector('.swhint span:nth-child(2)'); if(hint) hint.textContent='';
   if(ok && it.a===30){ const fb=document.getElementById('fb'); if(fb) fb.innerHTML=hanjaHTML(it.o); }
@@ -1116,6 +1118,7 @@ function boot(){
 }
 boot();
 window.__cnt = t => homePool(t).length;   // 자동 검사용(화면에는 안 씀)
+window.__sess = () => sess;   // 자동 검사용
 })();
 </script>
 </body>
