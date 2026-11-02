@@ -287,12 +287,12 @@ const RANGES = [
 // 홈에서 고르는 유형. 설명은 학생이 처음 봐도 뭘 하는지 알게 한 줄로
 const TYPES = [
   {id:'pick', label:'바른 표기 고르기', desc:'문장을 보고 둘 중 맞는 표기를 고릅니다.'},
-  {id:'swipe', label:'쓱쓱', desc:'문장 하나씩, 맞으면 오른쪽 · 틀리면 왼쪽으로 밀어요.'},
+  {id:'swipe', label:'쓱쓱 넘기기', desc:'문장 하나씩, 맞으면 오른쪽 · 틀리면 왼쪽으로 밀어요.'},
   {id:'spot', label:'틀린 곳 찾기', desc:'카톡 대화에 숨은 틀린 표기를 눌러 찾아요.'},
   {id:'basis', label:'근거 조항 고르기', desc:'이 표기가 왜 맞는지, 조항을 고릅니다.'},
   {id:'blank', label:'조항 빈칸 채우기', desc:'조항 원문의 빈칸에 들어갈 말을 씁니다.'},
 ];
-const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 고르기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 · 맞으면 →  틀리면 ←'};
+const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 고르기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
 function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
 const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
 const BLANKS = D.blanks.map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
