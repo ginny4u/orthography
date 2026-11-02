@@ -947,7 +947,9 @@ function answerBlank(q, val){
   const it=q.it;
   // 앞뒤 낱말을 붙여 써도 맞게 침("소리대로"처럼)
   const pre=(it.b.match(/(\S+)\s*$/)||['',''])[1], post=(it.f.match(/^\s*(\S+)/)||['',''])[1];
-  const v=norm(val), ok = [it.k].concat(it.alt||[]).some(a=>[a, a+post, pre+a, pre+a+post].some(c=>norm(c)===v));
+  // 답이 여러 개(쉼표로 나열)면 순서가 달라도 맞게 침
+  const parts = x => String(x).split(/[\s,·/、]+/).map(norm).filter(Boolean).sort().join('|');
+  const v=norm(val), ok = [it.k].concat(it.alt||[]).some(a=>[a, a+post, pre+a, pre+a+post].some(c=>norm(c)===v) || (/[,·/、]/.test(a) && parts(a)===parts(val)));
   const inp=document.getElementById('bi'); inp.disabled=true;
   document.getElementById('chk').remove();
   if(!ok){
