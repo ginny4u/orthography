@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>맞춤법 교정실</title>
-<meta name="description" content="고1 한글 맞춤법 반복 연습 — 조항 카드, 바른 표기, 근거 조항, 조항 빈칸">
+<meta name="description" content="고1 한글 맞춤법 반복 연습 — 조항 카드, 바른 표기, 쓱쓱 넘기기, 틀린 곳 찾기, 조항 빈칸">
 <meta name="theme-color" content="#bf1f1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -306,10 +306,9 @@ const TYPES = [
   {id:'pick', label:'바른 표기 고르기', desc:'문장을 보고 둘 중 맞는 표기를 고릅니다.'},
   {id:'swipe', label:'쓱쓱 넘기기', desc:'문장 하나씩, 맞으면 오른쪽 · 틀리면 왼쪽으로 밀어요.'},
   {id:'spot', label:'틀린 곳 찾기', desc:'카톡 대화에 숨은 틀린 표기를 눌러 찾아요.'},
-  {id:'basis', label:'근거 조항 고르기', desc:'이 표기가 왜 맞는지, 규칙을 읽고 고릅니다.'},
   {id:'blank', label:'조항 빈칸 채우기', desc:'조항 원문의 빈칸에 들어갈 말을 씁니다.'},
 ];
-const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 고르기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
+const KIND_LABEL = {pick:'바른 표기 고르기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
 function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
 const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
 const BLANKS = D.blanks.map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
@@ -350,6 +349,8 @@ function useStore(){
   store = BASE();
   try{ const s=JSON.parse(lsGet(skey)||'null'); if(s) Object.assign(store, s); }catch(e){}
   if(!Array.isArray(store.pending)) store.pending=[];
+  Object.keys(store.wrong||{}).forEach(id=>{ if(id[0]==='r') delete store.wrong[id]; });   // 예전 근거 조항 문제 오답은 버림
+  if(store.type==='basis') store.type=null;
   if(!store.bs) store.bs={sc:'school', per:'week'};
   if(!store.sk) store.sk={last:'', n:0};
   if(auth) store.school=auth.me.school;
@@ -488,13 +489,12 @@ function scopeItems(sel, arts){
   return {P:[...P.values()], B:[...B.values()], S: SPOTS.filter(x=>x.arts.some(a=>want.has(a)))};
 }
 function buildPool(type, S){
-  const pick = p=>({kind:'pick', it:p, id:p.id}), basis = p=>({kind:'basis', it:p, id:'r'+p.id}), blank = b=>({kind:'blank', it:b, id:b.id});
+  const pick = p=>({kind:'pick', it:p, id:p.id}), blank = b=>({kind:'blank', it:b, id:b.id});
   if(type==='pick') return S.P.map(pick);
-  if(type==='basis') return S.P.filter(p=>!p.nb).map(basis);
   if(type==='blank') return S.B.map(blank);
   if(type==='spot') return S.S.map(x=>({kind:'spot', it:x, id:x.id}));
   if(type==='swipe') return S.P.map(p=>({kind:'swipe', it:p, id:'o'+p.id}));
-  return S.P.map(p=>(p.nb || Math.random()<.55)?pick(p):basis(p)).concat(S.B.map(blank));
+  return S.P.map(pick).concat(S.B.map(blank));
 }
 const homePool = (type) => buildPool(type||store.type, scopeItems(srcSel(), allowedArts(store.rng)));
 // 틀린 곳 찾기·쓱쓱: 홈 버튼에서 바로 시작(지금 고른 범위로)
@@ -512,18 +512,8 @@ function weight(id){ const s=store.st[id]; if(store.wrong[id]) return 5; if(!s) 
 function sample(pool, n){
   return pool.map(q=>({q, k:Math.pow(Math.random(), 1/weight(q.id))})).sort((a,b)=>b.k-a.k).slice(0,n).map(x=>x.q);
 }
-// 근거 조항 선택지: 조항 원문은 '다음 말들은 각각 구별하여 적는다'처럼 그 자체로는 추론이 안 되므로 핵심 풀이의 첫 문장을 보여 준다
-function ruleGist(n){ const c=(ART[n]&&ART[n].core)||ART[n].t; const m=c.match(/^.*?[.。](?=\s|$)/); return (m?m[0]:c).trim(); }
-function basisOptions(n){
-  const near = new Set();
-  D.groups.forEach(g=>{ if(g.includes(n)) g.forEach(x=>{ if(x!==n && ART[x]) near.add(x); }); });
-  let cand = shuffle([...near]).slice(0,3);
-  if(cand.length<3){ const same = shuffle(D.arts.filter(a=>a.c===ART[n].c && a.n!==n && !cand.includes(a.n)).map(a=>a.n)); cand = cand.concat(same).slice(0,3); }
-  return shuffle([n].concat(cand));
-}
 function prepare(q){
   if(q.kind==='pick') q.opts = shuffle([q.it.o, q.it.x]);
-  if(q.kind==='basis') q.opts = basisOptions(q.it.a);
   if(q.kind==='swipe') q.show = Math.random()<.5;   // true면 바른 표기를 보여 줌
   if(q.kind==='spot'){ q.bad = {}; q.it.t.forEach((b,bi)=>b[1].forEach((p,pi)=>{ if(typeof p!=='string' && p.o) q.bad[bi+'-'+pi] = Math.random()<.6; })); }  // 틀리게 보여 줄 자리(없을 수도 있음)
   return q;
@@ -870,8 +860,8 @@ function startSession(qs, meta){
 }
 function startWrong(){
   const qs = Object.keys(store.wrong).map(id=>{
-    const it=BYID[id]; if(!it) return null;
-    const kind = {r:'basis', b:'blank', s:'spot', o:'swipe'}[id[0]] || 'pick';
+    const it=BYID[id]; if(!it || id[0]==='r') return null;   // 'r': 예전 근거 조항 문제(유형 삭제)
+    const kind = {b:'blank', s:'spot', o:'swipe'}[id[0]] || 'pick';
     return {kind, it, id};
   }).filter(Boolean);
   startSession(shuffle(qs).slice(0,15), {from:'wrong'});
@@ -921,10 +911,6 @@ function renderQ(){
   if(q.kind==='pick'){
     body='<p class="qsent" id="qs">'+sentFilled(it,'blank')+'</p>'+
       '<div class="opts two">'+q.opts.map((o,k)=>'<button type="button" class="opt" data-o="'+k+'">'+esc(o)+'</button>').join('')+'</div>';
-  } else if(q.kind==='basis'){
-    body='<p class="qsent">'+sentFilled(it,'mark')+'</p>'+
-      '<p class="note" style="margin:-8px 0 14px">‘<s>'+esc(it.x)+'</s>’'+josa(it.x,'이','가')+' 아니라 ‘<b>'+esc(it.o)+'</b>’'+josa(it.o,'으로','로')+' 적는 까닭은? 맞는 규칙을 고르세요.</p>'+
-      '<div class="opts">'+q.opts.map((a,k)=>'<button type="button" class="opt rule" data-o="'+k+'"><small>제'+a+'항 · '+esc(ART[a].k)+'</small>'+esc(ruleGist(a))+'</button>').join('')+'</div>';
   } else if(q.kind==='spot'){
     body='<p class="note" style="margin:0 0 12px">틀린 표기가 있으면 모두 눌러 고르세요. 하나도 없을 수도 있어요.</p><div class="chat">'+it.t.map((b,bi)=>
       '<div class="msg '+b[0]+'"><div class="bb">'+b[1].map((p,pi)=> typeof p==='string'
@@ -1075,7 +1061,6 @@ function renderResult(){
       const loc = it.l ? ' · '+it.l : '';
       if(r.q.kind==='spot') return '<li>'+(spotWhy(it, r.q.bad, r.oops)||'<div class="w2">틀린 곳이 없는 대화였는데 고른 것이 있었어요.</div>')+'</li>';
       if(r.q.kind==='swipe') return '<li><div class="w1">'+sentFilled(it,'fix',it.x)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
-      if(r.q.kind==='basis') return '<li><div class="w1">'+sentFilled(it,'mark')+'</div><div class="w2">근거: '+esc('제'+it.a+'항'+partLabel(it))+' · '+esc(ART[it.a].k+loc)+'</div></li>';
       return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
     }).join('')+'</ul>';
   }
