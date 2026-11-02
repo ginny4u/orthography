@@ -858,10 +858,14 @@ function sentFilled(p, mode, chosen){
 // 사이시옷 낱말의 짜임: 한자어 요소에 한자를 붙여 보여 줌(학생들이 한자어·고유어 구분을 어려워해서)
 const HJ = D.hanja || {};
 function hanjaHTML(word){
-  const b = HJ[word]; if(!b) return '';
+  const raw = HJ[word]; if(!raw) return '';
+  const note = (raw.find(x=>x[2])||[])[2], b = raw.filter(x=>!x[2]);
   const all = b.every(x=>x[1]), none = b.every(x=>!x[1]);
+  const vd = note ? note
+    : all ? (/^(곳간|셋방|숫자|찻간|툇간|횟수)$/.test(word) ? '전부 한자어지만 예외 여섯 단어(곳간·셋방·숫자·찻간·툇간·횟수)라 사이시옷을 적음' : '전부 한자어 → 사이시옷 없음(예외 여섯 단어만)')
+    : (none ? '전부 고유어' : '고유어가 들어 있음')+' + 사잇소리가 남 → 사이시옷';
   return '<div class="hj"><span class="lab">짜임</span>'+b.map(x=>'<span class="'+(x[1]?'ha':'go')+'">'+esc(x[0])+(x[1]?'<small>'+esc(x[1])+' 한자어</small>':'<small>고유어</small>')+'</span>').join('<i>+</i>')+
-    '<span class="vd">'+(all ? (/^(곳간|셋방|숫자|찻간|툇간|횟수)$/.test(word) ? '전부 한자어지만 예외 여섯 단어(곳간·셋방·숫자·찻간·툇간·횟수)라 사이시옷을 적음' : '전부 한자어 → 사이시옷 없음(예외 여섯 단어만)') : none ? '전부 고유어' : '고유어가 들어 있음')+'</span></div>';
+    '<span class="vd">'+esc(vd)+'</span></div>';
 }
 function whyLine(p){
   return '<div class="why"><b>'+esc('제'+p.a+'항'+partLabel(p))+'</b> · '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>'+(p.a===30?hanjaHTML(p.o):'');
@@ -1057,7 +1061,7 @@ function renderRules(){
       html+='<details class="art" id="a'+a.n+'"><summary><span class="no">제'+a.n+'항</span><span class="k">'+esc(a.k)+'</span><span class="cnt">'+(cnt[a.n]||0)+'문제</span>'+tag(a.n)+'</summary><div class="artbody">'+
         '<div class="law">'+esc(a.t)+a.sub.map(s=>'<span class="sub"><b>'+esc(/^\d/.test(s[0])?s[0]+'.':'['+s[0]+']')+'</b>'+esc(s[1])+'</span>').join('')+'</div>'+
         '<p class="core">'+esc(a.core)+'</p>'+
-        a.ex.map(g=>'<div class="exg"><div class="lab">'+esc(g[0])+'</div><div class="ex">'+g[1].map(w=>'<span>'+esc(w)+(a.n===30&&HJ[w]?'<small class="hjs">'+HJ[w].map(x=>x[1]?esc(x[0])+'('+esc(x[1])+')':esc(x[0])).join('+')+'</small>':'')+'</span>').join('')+'</div></div>').join('')+
+        a.ex.map(g=>'<div class="exg"><div class="lab">'+esc(g[0])+'</div><div class="ex">'+g[1].map(w=>'<span>'+esc(w)+(a.n===30&&HJ[w]?'<small class="hjs">'+HJ[w].filter(x=>!x[2]).map(x=>x[1]?esc(x[0])+'('+esc(x[1])+')':esc(x[0])).join('+')+'</small>':'')+'</span>').join('')+'</div></div>').join('')+
         (a.pre.length?'<p class="pre"><b>선행 문법</b> · '+a.pre.map(k=>esc(D.pre[k]||k)).join(' · ')+'</p>':'')+
         ((cnt[a.n]||0)?'<button type="button" class="btn" data-art="'+a.n+'" style="margin-top:12px">이 조항만 풀기</button>':'')+
         '</div></details>';
