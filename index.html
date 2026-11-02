@@ -139,12 +139,10 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 @keyframes stampin{to{opacity:.95;transform:rotate(10deg) scale(1)}}
 .okmark{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--accent);font-weight:700;font-size:16px;line-height:normal}
 .okmark img{width:34px;height:auto;animation:stampin .3s cubic-bezier(.2,1.4,.4,1) forwards;opacity:0;transform:scale(2)}
-.good{position:absolute;right:0;top:-10px;width:120px;height:auto;transform:rotate(-8deg) scale(2);opacity:0;animation:stamp .45s cubic-bezier(.2,1.4,.4,1) .25s forwards}
 /* 결과 */
 .scorebox{position:relative}
 .stampimg{position:absolute;right:0;top:-24px;width:150px;height:150px;transform:rotate(-12deg) scale(2.2);opacity:0;animation:stamp .45s cubic-bezier(.2,1.4,.4,1) .25s forwards;pointer-events:none}
 @keyframes stamp{to{transform:rotate(-12deg) scale(1);opacity:.95}}
-.good{animation-name:good}@keyframes good{to{transform:rotate(-8deg) scale(1);opacity:.95}}
 .score{font-size:32px;font-weight:700;line-height:normal;margin:4px 0 0}
 .score span{font-size:16px;color:var(--muted);font-weight:500}
 .wlist{list-style:none;padding:0;margin:0}
@@ -979,7 +977,7 @@ function renderResult(){
     }).join('')+'</ul>';
   }
   const kb = c===n ? '전부 맞혔어요. 이 기세로 한 번 더?' : wrong.length<=2 ? '거의 다 맞혔어요. 틀린 것만 다시 볼까요?' : '틀린 문제는 오답 노트에 들어갔어요. 다시 맞히면 빠집니다.';
-  const stamp = c===n && n>=5 ? '<img class="stampimg" src="stamp.webp" alt="참 잘했어요">' : (n>=5 && c/n>=.8 ? '<img class="good" src="good.webp" alt="Good!">' : '');
+  const stamp = c===n && n>=5 ? '<img class="stampimg" src="stamp.webp" alt="참 잘했어요">' : '';
   app.innerHTML=hero(kb)+'<div class="scorebox"><div class="qkind">결과</div><p class="score">'+c+' <span>/ '+n+'</span></p>'+stamp+'</div>'+list+
     '<div class="row">'+(wrong.length?'<button type="button" class="btn primary" id="rw">틀린 문제만 다시</button>':'')+
     '<button type="button" class="btn" id="again">한 번 더</button><button type="button" class="btn" id="home2">처음으로</button></div>';
