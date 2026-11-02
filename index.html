@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>맞춤법 교정실</title>
-<meta name="description" content="고1 한글 맞춤법 반복 연습 — 조항 카드, 바른 표기, 쓱쓱 넘기기, 틀린 곳 찾기, 조항 빈칸">
+<meta name="description" content="고1 한글 맞춤법 반복 연습 — 조항 카드, 바른 표기, 쓱쓱 넘기기, 틀린 곳 찾기">
 <meta name="theme-color" content="#bf1f1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -306,12 +306,11 @@ const TYPES = [
   {id:'pick', label:'바른 표기 고르기', desc:'문장을 보고 둘 중 맞는 표기를 고릅니다.'},
   {id:'swipe', label:'쓱쓱 넘기기', desc:'문장 하나씩, 맞으면 오른쪽 · 틀리면 왼쪽으로 밀어요.'},
   {id:'spot', label:'틀린 곳 찾기', desc:'카톡 대화에 숨은 틀린 표기를 눌러 찾아요.'},
-  {id:'blank', label:'조항 빈칸 채우기', desc:'조항 원문의 빈칸에 들어갈 말을 씁니다.'},
 ];
-const KIND_LABEL = {pick:'바른 표기 고르기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
+const KIND_LABEL = {pick:'바른 표기 고르기', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
 function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
 const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
-const BLANKS = D.blanks.map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
+const BLANKS = [];   // 조항 빈칸 유형은 뺐음(답이 문장 안에 보여서). 데이터(D.blanks)만 남아 있음
 const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p; BYID['o'+p.id]=p;}); BLANKS.forEach(b=>BYID[b.id]=b);
 // 틀린 곳 찾기: 메시지 묶음 하나가 문제 하나. 오답 노트에서는 첫 조항으로 묶음
 const SPOTS = (window.ORTH_SPOT||[]).map(it=>{
@@ -324,7 +323,7 @@ const SRC = {};
 Object.keys(SS.src).forEach(key=>{
   let s = SS.src[key]; if(s.use) s = Object.assign({}, SS.src[s.use], {title:s.title, arts:s.arts});
   const P = (s.picks||[]).map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
-  const B = (s.blanks||[]).map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
+  const B = [];
   P.forEach(p=>{ BYID[p.id]=p; BYID['o'+p.id]=p; if(!p.nb) BYID['r'+p.id]=p; }); B.forEach(b=>BYID[b.id]=b);
   SRC[key] = {title:s.title, arts:new Set(s.arts||[]), P, B};
 });
@@ -349,8 +348,8 @@ function useStore(){
   store = BASE();
   try{ const s=JSON.parse(lsGet(skey)||'null'); if(s) Object.assign(store, s); }catch(e){}
   if(!Array.isArray(store.pending)) store.pending=[];
-  Object.keys(store.wrong||{}).forEach(id=>{ if(id[0]==='r') delete store.wrong[id]; });   // 예전 근거 조항 문제 오답은 버림
-  if(store.type==='basis') store.type=null;
+  Object.keys(store.wrong||{}).forEach(id=>{ if(id[0]==='r'||id[0]==='b') delete store.wrong[id]; });   // 없앤 유형(근거 조항·조항 빈칸)의 오답은 버림
+  if(store.type==='basis'||store.type==='blank') store.type=null;
   if(!store.bs) store.bs={sc:'school', per:'week'};
   if(!store.sk) store.sk={last:'', n:0};
   if(auth) store.school=auth.me.school;
@@ -489,12 +488,11 @@ function scopeItems(sel, arts){
   return {P:[...P.values()], B:[...B.values()], S: SPOTS.filter(x=>x.arts.some(a=>want.has(a)))};
 }
 function buildPool(type, S){
-  const pick = p=>({kind:'pick', it:p, id:p.id}), blank = b=>({kind:'blank', it:b, id:b.id});
+  const pick = p=>({kind:'pick', it:p, id:p.id});
   if(type==='pick') return S.P.map(pick);
-  if(type==='blank') return S.B.map(blank);
   if(type==='spot') return S.S.map(x=>({kind:'spot', it:x, id:x.id}));
   if(type==='swipe') return S.P.map(p=>({kind:'swipe', it:p, id:'o'+p.id}));
-  return S.P.map(pick).concat(S.B.map(blank));
+  return S.P.map(pick);
 }
 const homePool = (type) => buildPool(type||store.type, scopeItems(srcSel(), allowedArts(store.rng)));
 // 틀린 곳 찾기·쓱쓱: 홈 버튼에서 바로 시작(지금 고른 범위로)
@@ -860,14 +858,14 @@ function startSession(qs, meta){
 }
 function startWrong(){
   const qs = Object.keys(store.wrong).map(id=>{
-    const it=BYID[id]; if(!it || id[0]==='r') return null;   // 'r': 예전 근거 조항 문제(유형 삭제)
-    const kind = {b:'blank', s:'spot', o:'swipe'}[id[0]] || 'pick';
+    const it=BYID[id]; if(!it || id[0]==='r' || id[0]==='b') return null;   // 'r','b': 없앤 유형(근거 조항·조항 빈칸)
+    const kind = {s:'spot', o:'swipe'}[id[0]] || 'pick';
     return {kind, it, id};
   }).filter(Boolean);
   startSession(shuffle(qs).slice(0,15), {from:'wrong'});
 }
 function startArt(n){
-  const S = artItems(n), pool = buildPool(S.P.length?'mix':'blank', S);
+  const S = artItems(n), pool = buildPool('pick', S);
   startSession(sample(pool, Math.min(10,pool.length)), {from:'art', n});
 }
 // 누적 정답은 같은 문제를 하루에 한 번만 셈(서버 순위와 같은 기준)
@@ -923,10 +921,6 @@ function renderQ(){
     body='<div class="swipe" id="sw"><div class="swc" id="sc"><p class="qsent" style="margin:0">'+esc(it.s).replace('□','<span class="mark">'+esc(word)+'</span>')+'</p>'+
       '<span class="stamp no" id="st-no">틀림</span><span class="stamp ok" id="st-ok">맞음</span></div></div>'+
       '<div class="swhint"><span>← <b>틀림</b></span><span>'+(sess.i===0?'카드를 옆으로 밀어 보세요':'')+'</span><span><b>맞음</b> →</span></div>';
-  } else {
-    body='<p class="note" style="margin:0 0 12px">제'+it.a+'항 · 빈칸에 들어갈 말을 쓰세요. 앞뒤 낱말까지 같이 써도 됩니다.</p>'+
-      '<div class="blankrow">'+esc(it.b)+'<input id="bi" style="width:'+Math.min(12, Math.max(4, it.k.length+1.5))+'em" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="빈칸">'+esc(it.f)+'</div>'+
-      '<button type="button" class="btn primary wide next" id="chk">확인</button>';
   }
   app.innerHTML =
     '<div class="qtop"><span>'+(sess.i+1)+' / '+n+'</span><button type="button" class="linkbtn" id="quit">그만하기</button></div>'+
@@ -938,11 +932,6 @@ function renderQ(){
     document.getElementById('chk').onclick=()=>answerSpot(q);
   } else if(q.kind==='swipe'){
     bindSwipe(q);
-  } else if(q.kind==='blank'){
-    const inp=document.getElementById('bi'); inp.focus();
-    const done=()=>answerBlank(q, inp.value);
-    document.getElementById('chk').onclick=done;
-    inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); done(); } };
   } else {
     app.querySelectorAll('.opt').forEach(b=>b.onclick=()=>answerOpt(q, +b.dataset.o));
   }
@@ -968,22 +957,6 @@ function answerOpt(q, k){
     btns.forEach((b,i)=>{ if(q.opts[i]===q.it.a) b.classList.add('ok'); else if(i===k) b.classList.add('ng'); });
     afterAnswer(ok, q, whyLine(q.it));
   }
-}
-function answerBlank(q, val){
-  if(!String(val).trim()){ document.getElementById('bi').focus(); return; }
-  const it=q.it;
-  // 앞뒤 낱말을 붙여 써도 맞게 침("소리대로"처럼)
-  const pre=(it.b.match(/(\S+)\s*$/)||['',''])[1], post=(it.f.match(/^\s*(\S+)/)||['',''])[1];
-  // 답이 여러 개(쉼표로 나열)면 순서가 달라도 맞게 침
-  const parts = x => String(x).split(/[\s,·/、]+/).map(norm).filter(Boolean).sort().join('|');
-  const v=norm(val), ok = [it.k].concat(it.alt||[]).some(a=>[a, a+post, pre+a, pre+a+post].some(c=>norm(c)===v) || (/[,·/、]/.test(a) && parts(a)===parts(val)));
-  const inp=document.getElementById('bi'); inp.disabled=true;
-  document.getElementById('chk').remove();
-  if(!ok){
-    inp.outerHTML='<span class="fix"><s>'+esc(val)+'</s><b>'+esc(it.k)+'</b></span>';
-  } else { inp.style.background='var(--soft)'; inp.style.color='var(--accent)'; inp.style.fontWeight='700'; }
-  afterAnswer(ok, q, ok?'':'<div class="why"><b>정답: '+esc(it.k)+'</b></div>');
-  if(!ok) sess.res[sess.res.length-1].chosen=val;
 }
 
 // 틀린 곳 찾기: 틀린 것을 다 고르고 맞는 것은 안 골라야 정답
@@ -1057,7 +1030,6 @@ function renderResult(){
   if(wrong.length){
     list='<h2 class="sec">틀린 문제</h2><ul class="wlist">'+wrong.map(r=>{
       const it=r.q.it;
-      if(r.q.kind==='blank') return '<li><div class="w1">'+esc(it.b)+'<span class="fix"><s>'+esc(r.chosen||'')+'</s><b>'+esc(it.k)+'</b></span>'+esc(it.f)+'</div><div class="w2">제'+it.a+'항 · '+esc(ART[it.a].k)+'</div></li>';
       const loc = it.l ? ' · '+it.l : '';
       if(r.q.kind==='spot') return '<li>'+(spotWhy(it, r.q.bad, r.oops)||'<div class="w2">틀린 곳이 없는 대화였는데 고른 것이 있었어요.</div>')+'</li>';
       if(r.q.kind==='swipe') return '<li><div class="w1">'+sentFilled(it,'fix',it.x)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
