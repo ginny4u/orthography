@@ -85,7 +85,8 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .slot.on::before{content:"✓ ";font-weight:700}
 .fix{position:relative;display:inline-block;line-height:1.4}
 .fix s{text-decoration-color:var(--muted);text-decoration-thickness:2px;color:var(--muted)}
-.fix b{position:absolute;left:50%;top:-1.2em;transform:translateX(-50%);color:var(--accent);font-size:.8em;white-space:nowrap;font-weight:700}
+.fix b{position:absolute;left:50%;top:-1.15em;transform:translateX(-50%);color:var(--accent);font-size:.9em;white-space:nowrap;font-weight:700}
+.swc .fix b{font-size:1em;top:-1.2em}
 .mark{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:6px;font-weight:700}
 .opts{display:grid;gap:10px}
 .opts.two{grid-template-columns:1fr 1fr}
@@ -180,6 +181,12 @@ details.art[open] summary .no{color:var(--accent)}
 .form input{font:inherit;letter-spacing:inherit;font-size:18px;padding:12px;border:1px solid var(--rule);border-radius:12px;background:var(--paper);color:var(--ink);width:100%}
 .form .btn.wide{margin-top:16px}
 .err{color:var(--accent);font-size:14px;line-height:1.5;margin:6px 0 0}
+/* 빠른 시작(틀린 곳 찾기·쓱쓱·오답만) */
+.modes{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px}
+.mode{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px;background:var(--paper);border:1px solid var(--rule);border-radius:14px;text-align:left}
+.mode b{font-size:14px;font-weight:700;line-height:normal}
+.mode span{font-size:12px;line-height:1.5;color:var(--muted)}
+.mode:disabled{opacity:.45;cursor:default}
 /* 학교 대항 */
 .vs{display:grid;gap:8px;margin-top:12px}
 .vs .v{display:grid;grid-template-columns:5.2em 1fr auto;gap:10px;align-items:center;font-size:14px;line-height:normal}
@@ -256,7 +263,6 @@ const RANGES = [
 const TYPES = [
   {id:'pick', label:'바른 표기'}, {id:'basis', label:'근거 조항'},
   {id:'blank', label:'조항 빈칸'}, {id:'mix', label:'섞어서'},
-  {id:'spot', label:'틀린 곳 찾기'}, {id:'swipe', label:'쓱쓱'},
 ];
 const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 대기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 · 맞으면 →  틀리면 ←'};
 function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
@@ -440,10 +446,12 @@ function buildPool(type, S){
   if(type==='basis') return S.P.filter(p=>!p.nb).map(basis);
   if(type==='blank') return S.B.map(blank);
   if(type==='spot') return S.S.map(x=>({kind:'spot', it:x, id:x.id}));
-  if(type==='swipe') return S.P.map(p=>({kind:'swipe', it:p, id:'o'+p.id}));
+  if(type==='swipe') return S.P.filter(p=>!p.ez).map(p=>({kind:'swipe', it:p, id:'o'+p.id}));
   return S.P.map(p=>(p.nb || Math.random()<.55)?pick(p):basis(p)).concat(S.B.map(blank));
 }
-const homePool = () => buildPool(store.type, scopeItems(srcSel(), allowedArts(store.rng)));
+const homePool = (type) => buildPool(type||store.type, scopeItems(srcSel(), allowedArts(store.rng)));
+// 틀린 곳 찾기·쓱쓱: 홈 버튼에서 바로 시작(지금 고른 범위로)
+function startMode(type){ const pool=homePool(type); if(!pool.length) return; startSession(sample(pool, type==='swipe'?Math.max(store.n,15):store.n), {from:'home', type}); }
 // 조항 하나: 공통 문제 + 우리 학교 자료 중 그 조항 문제
 function artItems(n){
   const sc=store.school, S=scopeItems(slotsOf(sc).filter(x=>x.ready && x.id!=='base').map(x=>x.id), new Set());
@@ -710,7 +718,9 @@ function renderHome(){
       (guest && API ? ' · <button type="button" class="linkbtn" id="tout2">선생님 페이지 나가기</button>' : '')+'</p>';
   if(guest && teachTok && API && (srvT.school!==store.school || (!srvT.board && !srvT.state))) loadTeachBoard();
   // 설정 요약 한 줄 + 펼친 설정
+  if(!TYPES.some(t=>t.id===store.type)) store.type='pick';
   const typeLab = (TYPES.find(t=>t.id===store.type)||TYPES[0]).label;
+  const nSpot = homePool('spot').length, nSw = homePool('swipe').length;
   const summary = sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · '+typeLab+' · '+store.n+'문제';
   const srcChips = '<div class="chips">'+slots.map(x=> x.ready
       ? '<button type="button" class="chip" data-src="'+x.id+'" aria-pressed="'+sel.includes(x.id)+'">'+esc(x.label)+'</button>'
@@ -726,7 +736,11 @@ function renderHome(){
    hero(bubbleText())+who+
    '<button type="button" class="btn primary wide" id="start"'+(pool.length?'':' disabled')+'>'+store.n+'문제 시작</button>'+
    '<div class="setline"><span>'+esc(summary)+'</span><button type="button" class="linkbtn" id="tog">'+(store.open?'닫기':'바꾸기')+'</button></div>'+settings+
-   (wrongN?'<p class="note" style="text-align:center;margin-top:16px"><button type="button" class="linkbtn" id="towrong">오답만 풀기 ('+wrongN+')</button></p>':'')+
+   '<div class="modes">'+
+     '<button type="button" class="mode" data-mode="spot"'+(nSpot?'':' disabled')+'><b>틀린 곳 찾기</b><span>카톡 속 틀린 표기 찾기 · '+nSpot+'</span></button>'+
+     '<button type="button" class="mode" data-mode="swipe"'+(nSw?'':' disabled')+'><b>쓱쓱</b><span>맞으면 → 틀리면 ← · '+nSw+'</span></button>'+
+     '<button type="button" class="mode" id="towrong"'+(wrongN?'':' disabled')+'><b>오답만</b><span>틀렸던 문제 다시 · '+wrongN+'</span></button>'+
+   '</div>'+
    vsHTML()+'<h2 class="sec">순위표</h2>'+boardHTML();
   const chs=document.getElementById('chs'); if(chs) chs.onclick=renderPick;
   const out=document.getElementById('out'); if(out) out.onclick=logout;
@@ -748,6 +762,7 @@ function renderHome(){
   app.querySelectorAll('[data-per]').forEach(b=>b.onclick=()=>{ store.bs.per=b.dataset.per; save(); renderHome(); });
   const st=document.getElementById('start'); if(st) st.onclick=()=>startSession(sample(pool, store.n), {from:'home'});
   const tw=document.getElementById('towrong'); if(tw) tw.onclick=startWrong;
+  app.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>startMode(b.dataset.mode));
 }
 
 /* ---------- 세션 */
@@ -933,6 +948,7 @@ function renderResult(){
   document.getElementById('again').onclick=()=>{
     if(sess.meta.from==='art') return startArt(sess.meta.n);
     if(sess.meta.from==='wrong') return startWrong();
+    if(sess.meta.type) return startMode(sess.meta.type);
     startSession(sample(homePool(), store.n), {from:'home'});
   };
   document.getElementById('home2').onclick=()=>{ sess=null; go('practice'); };

@@ -737,6 +737,15 @@ blank(56,"지난 일을 나타내는 어미는 ‘","-더라, -던","’으로 �
 out = dict(chapters=CHAPTERS, pre=PRE,
            arts=[dict(n=a[0], k=KEY[a[0]], c=a[1], s=a[2], t=a[3], sub=[list(x) for x in a[4]], core=a[5], ex=[list(x) for x in a[6]], pre=a[7]) for a in ARTS],
            picks=P, blanks=B, groups=GROUPS)
+# 쓱쓱(O/X)에서는 뺄 문제: 틀린 표기가 실제로 아무도 안 쓰는 모양이라 보자마자 답이 나오는 것.
+# 바른 표기 고르기·근거 조항에서는 그대로 낸다(조항 적용 자체를 묻는 문제라서).
+EZ = set('''옵바 각금 국쑤 갑짜기 몹씨 끄치 얼핃 사묻 자칟 헏 꼬치 갑시 부어케서 바테 도라가고 떠러졌다 읽어오 좋지오
+미듬 기피 머기 만이 시럽시 낱나치 샅사치 곳고시 집지비 바두기 업샜다 일우었다 귀뚤아미 동글아미 깨끄시 꾸주니 어렴푸시
+그피 곰고미 생그시 부지럽는 하염업시 수탄 허두슴 덧이 사랑이 어금이 자았다 엇개 솟적새 잇다금 믿업다 웃읍다 개굴이 뻐꾹이'''.split())
+for _p in P:
+    if _p['x'] in EZ:
+        _p['ez'] = 1
+
 if __name__ == '__main__':
     js = 'window.ORTH_COMMON = ' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n'
     open(sys.argv[1], 'w', encoding='utf-8').write(js)
