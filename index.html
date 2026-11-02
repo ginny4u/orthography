@@ -203,7 +203,7 @@ details.art[open] summary .no{color:var(--accent)}
 .a2hs b{font-weight:600}
 /* 유형 고르기 카드 */
 .types{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.tcard{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 14px 12px;background:var(--paper);border:1.5px solid var(--rule);border-radius:14px;text-align:left;min-height:112px}
+.tcard{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 14px 12px;background:var(--paper);border:1.5px solid var(--rule);border-radius:14px;text-align:left;min-height:96px}
 .tcard b{font-size:16px;font-weight:700;line-height:normal}
 .tcard span{font-size:12px;line-height:1.5;color:var(--muted);flex:1}
 .tcard i{font-style:normal;font-size:12px;line-height:normal;color:var(--muted);margin-top:4px}
@@ -758,8 +758,8 @@ function renderHome(){
   const cur = store.type && counts[store.type] ? store.type : null;
   const cards = '<div class="types">'+TYPES.map(t=>{ const on=t.id===cur, n=counts[t.id];
     return '<button type="button" class="tcard'+(on?' on':'')+'" data-type="'+t.id+'" aria-pressed="'+on+'"'+(n?'':' disabled')+'>'+
-      '<b>'+esc(t.label)+'</b><span>'+esc(t.desc)+'</span><i>'+(n?n+'문제':'이 범위엔 없음')+'</i></button>'; }).join('')+
-    '<button type="button" class="tcard" id="towrong"'+(wrongN?'':' disabled')+'><b>오답만 다시</b><span>틀렸던 문제만 다시 풀어요. 맞히면 오답 노트에서 빠집니다.</span><i>'+wrongN+'문제</i></button></div>';
+      '<b>'+esc(t.label)+'</b><span>'+esc(t.desc)+'</span>'+(n?'':'<i>이 범위엔 없음</i>')+'</button>'; }).join('')+
+    '<button type="button" class="tcard" id="towrong"'+(wrongN?'':' disabled')+'><b>오답만 다시</b><span>틀렸던 문제만 다시 풀어요. 맞히면 오답 노트에서 빠집니다.</span><i>'+(wrongN?wrongN+'문제':'아직 없음')+'</i></button></div>';
   const nQ = cur==='swipe' ? Math.max(store.n,15) : store.n;
   const startBtn = cur
     ? '<button type="button" class="btn primary wide" id="start">'+esc(TYPES.find(t=>t.id===cur).label)+' '+nQ+'문제 시작</button>'
@@ -1074,6 +1074,7 @@ function boot(){
   renderLogin('name');
 }
 boot();
+window.__cnt = t => homePool(t).length;   // 자동 검사용(화면에는 안 씀)
 })();
 </script>
 </body>
