@@ -39,7 +39,8 @@ button{font:inherit;letter-spacing:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 p{margin:0}
 
-.eyebrow{font-size:12px;line-height:normal;color:var(--muted);margin-bottom:2px;text-align:right;padding-right:2px}
+.eyebrow{font-size:12px;line-height:normal;color:var(--muted);margin-bottom:2px;white-space:nowrap;display:inline-block}
+.eyebrow span{display:inline-block}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 20px}
 .brand{font-family:var(--jua);font-size:20px;letter-spacing:0;line-height:normal;margin:0;cursor:pointer;white-space:nowrap;font-weight:400}
 .brand .heart{color:var(--accent);margin-right:6px;font-family:var(--sans)}
@@ -261,8 +262,8 @@ footer{margin-top:48px;padding-top:12px;border-top:1px solid var(--rule);font-si
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">국어는 역시 진희T😎</div>
-      <h1 class="brand" id="brand"><span class="heart">♥︎</span>맞춤법 교정실</h1>
+      <div class="eyebrow" id="eyebrow"><span>국어는 역시 진희T😎</span></div>
+      <h1 class="brand" id="brand"><span class="heart">♥︎</span><span class="bt">맞춤법 교정실</span></h1>
     </div>
     <nav class="tabs" aria-label="메뉴">
       <button type="button" data-tab="practice">연습</button>
@@ -1117,6 +1118,17 @@ function boot(){
   renderLogin('name');
 }
 boot();
+// 위 작은 글씨를 '맞춤법 교정실' 글자 폭에 딱 맞춤(하트 제외): 시작 위치는 글자 시작에, 자간으로 폭을 맞춘다
+function fitEyebrow(){
+  const eb=document.getElementById('eyebrow'), sp=eb.querySelector('span'), bt=document.querySelector('.brand .bt'), br=document.getElementById('brand');
+  if(!eb||!bt) return;
+  sp.style.letterSpacing='0'; eb.style.marginLeft='0';
+  const target=bt.getBoundingClientRect().width, nat=sp.getBoundingClientRect().width;
+  const txt=sp.textContent; const n=[...txt].length;   // 이모지는 한 글자로 셈
+  eb.style.marginLeft=(bt.getBoundingClientRect().left-br.getBoundingClientRect().left)+'px';
+  if(n>1 && target>nat) sp.style.letterSpacing=((target-nat)/(n-1))+'px';
+}
+document.fonts.ready.then(fitEyebrow); window.addEventListener('resize', fitEyebrow); window.addEventListener('load', fitEyebrow); setTimeout(fitEyebrow, 1500);
 window.__cnt = t => homePool(t).length;   // 자동 검사용(화면에는 안 씀)
 window.__sess = () => sess;   // 자동 검사용
 })();
