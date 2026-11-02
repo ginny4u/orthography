@@ -104,6 +104,27 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .why b{font-weight:600}
 .next{margin-top:20px}
 
+/* 틀린 곳 찾기(대화) */
+.chat{display:grid;gap:10px;margin-bottom:20px}
+.msg{display:flex}.msg.b{justify-content:flex-end}
+.bb{max-width:88%;background:var(--paper);border:1px solid var(--rule);border-radius:16px;padding:10px 12px;font-size:16px;line-height:1.9}
+.msg.a .bb{border-bottom-left-radius:4px}.msg.b .bb{background:var(--plate);border-color:var(--plate);border-bottom-right-radius:4px}
+.tk{background:none;border:0;padding:0 1px;margin:0 -1px;border-radius:4px;font:inherit;letter-spacing:inherit;line-height:1.4;border-bottom:2px solid transparent}
+.tk.sel{border-bottom-color:var(--accent);background:var(--soft)}
+.tk.hit{color:var(--accent);font-weight:700;background:none}
+.tk.missed{color:var(--accent);background:var(--soft);border-bottom-color:var(--accent)}
+.tk.oops{text-decoration:line-through;color:var(--muted);background:none;border-bottom-color:var(--muted)}
+.tk s{color:var(--muted);font-weight:400;margin-right:4px}.tk b{font-weight:700}
+.tk:disabled{cursor:default}
+/* 쓱쓱 */
+.swipe{position:relative;height:220px;margin:4px 0 16px;touch-action:pan-y}
+.swc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--paper);border:1px solid var(--rule);border-radius:20px;box-shadow:0 6px 24px rgba(0,0,0,.06);user-select:none;cursor:grab;overflow:hidden}
+.swc.still{cursor:default}
+.swc .qsent{text-align:center}
+.stamp{position:absolute;top:14px;padding:4px 10px;border:2px solid;border-radius:8px;font-size:14px;font-weight:700;line-height:normal;opacity:0;pointer-events:none}
+.stamp.ok{right:14px;color:var(--accent);border-color:var(--accent);transform:rotate(12deg)}
+.stamp.no{left:14px;color:var(--muted);border-color:var(--muted);transform:rotate(-12deg)}
+.swbtn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 /* 결과 */
 .score{font-size:32px;font-weight:700;line-height:normal;margin:4px 0 0}
 .score span{font-size:16px;color:var(--muted);font-weight:500}
@@ -205,6 +226,7 @@ footer{margin-top:48px;padding-top:12px;border-top:1px solid var(--rule);font-si
 </div>
 <script src="data.js"></script>
 <script src="school.js"></script>
+<script src="spot.js"></script>
 <script>
 (function(){
 'use strict';
@@ -231,19 +253,26 @@ const RANGES = [
 const TYPES = [
   {id:'pick', label:'바른 표기'}, {id:'basis', label:'근거 조항'},
   {id:'blank', label:'조항 빈칸'}, {id:'mix', label:'섞어서'},
+  {id:'spot', label:'틀린 곳 찾기'}, {id:'swipe', label:'쓱쓱'},
 ];
-const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 대기', blank:'조항 빈칸'};
+const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 대기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 · 맞으면 →  틀리면 ←'};
 function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
 const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
 const BLANKS = D.blanks.map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
-const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p;}); BLANKS.forEach(b=>BYID[b.id]=b);
+const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p; BYID['o'+p.id]=p;}); BLANKS.forEach(b=>BYID[b.id]=b);
+// 틀린 곳 찾기: 메시지 묶음 하나가 문제 하나. 오답 노트에서는 첫 조항으로 묶음
+const SPOTS = (window.ORTH_SPOT||[]).map(it=>{
+  const txt = it.t.map(b=>b[1].map(p=>typeof p==='string'?p:p.x).join('')).join('|');
+  return Object.assign({id:'s'+h(txt), a:it.arts[0]}, it);
+});
+SPOTS.forEach(x=>BYID[x.id]=x);
 // 학교 자료 문제: l = 자료 위치(교과서 118쪽 등), nb = 근거 조항 문제로는 내지 않음
 const SRC = {};
 Object.keys(SS.src).forEach(key=>{
   let s = SS.src[key]; if(s.use) s = Object.assign({}, SS.src[s.use], {title:s.title, arts:s.arts});
   const P = (s.picks||[]).map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
   const B = (s.blanks||[]).map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
-  P.forEach(p=>{ BYID[p.id]=p; if(!p.nb) BYID['r'+p.id]=p; }); B.forEach(b=>BYID[b.id]=b);
+  P.forEach(p=>{ BYID[p.id]=p; BYID['o'+p.id]=p; if(!p.nb) BYID['r'+p.id]=p; }); B.forEach(b=>BYID[b.id]=b);
   SRC[key] = {title:s.title, arts:new Set(s.arts||[]), P, B};
 });
 const schSrc = (sc, slot) => { const m=SS.map[sc]; return m && m[slot] && SRC[m[slot]] || null; };
@@ -400,13 +429,15 @@ function scopeItems(sel, arts){
     s.P.forEach(addP); s.B.forEach(addB); s.arts.forEach(n=>want.add(n)); });
   if(sel.includes('base')) arts.forEach(n=>want.add(n));
   PICKS.forEach(p=>{ if(want.has(p.a)) addP(p); }); BLANKS.forEach(b=>{ if(want.has(b.a)) addB(b); });
-  return {P:[...P.values()], B:[...B.values()]};
+  return {P:[...P.values()], B:[...B.values()], S: SPOTS.filter(x=>x.arts.some(a=>want.has(a)))};
 }
 function buildPool(type, S){
   const pick = p=>({kind:'pick', it:p, id:p.id}), basis = p=>({kind:'basis', it:p, id:'r'+p.id}), blank = b=>({kind:'blank', it:b, id:b.id});
   if(type==='pick') return S.P.map(pick);
   if(type==='basis') return S.P.filter(p=>!p.nb).map(basis);
   if(type==='blank') return S.B.map(blank);
+  if(type==='spot') return S.S.map(x=>({kind:'spot', it:x, id:x.id}));
+  if(type==='swipe') return S.P.map(p=>({kind:'swipe', it:p, id:'o'+p.id}));
   return S.P.map(p=>(p.nb || Math.random()<.55)?pick(p):basis(p)).concat(S.B.map(blank));
 }
 const homePool = () => buildPool(store.type, scopeItems(srcSel(), allowedArts(store.rng)));
@@ -431,6 +462,7 @@ function basisOptions(n){
 function prepare(q){
   if(q.kind==='pick') q.opts = shuffle([q.it.o, q.it.x]);
   if(q.kind==='basis') q.opts = basisOptions(q.it.a);
+  if(q.kind==='swipe') q.show = Math.random()<.5;   // true면 바른 표기를 보여 줌
   return q;
 }
 
@@ -724,7 +756,7 @@ function startSession(qs, meta){
 function startWrong(){
   const qs = Object.keys(store.wrong).map(id=>{
     const it=BYID[id]; if(!it) return null;
-    const kind = id[0]==='r' ? 'basis' : id[0]==='b' ? 'blank' : 'pick';
+    const kind = {r:'basis', b:'blank', s:'spot', o:'swipe'}[id[0]] || 'pick';
     return {kind, it, id};
   }).filter(Boolean);
   startSession(shuffle(qs).slice(0,15), {from:'wrong'});
@@ -766,6 +798,17 @@ function renderQ(){
   } else if(q.kind==='basis'){
     body='<p class="qsent">'+sentFilled(it,'mark')+'</p><p class="note" style="margin:-8px 0 14px">밑줄 친 표기의 근거가 되는 조항을 고르세요.</p>'+
       '<div class="opts">'+q.opts.map((a,k)=>'<button type="button" class="opt" data-o="'+k+'"><b>제'+a+'항</b><small>'+esc(ART[a].k)+'</small></button>').join('')+'</div>';
+  } else if(q.kind==='spot'){
+    body='<p class="note" style="margin:0 0 12px">틀린 표기를 모두 눌러 고르세요.</p><div class="chat">'+it.t.map((b,bi)=>
+      '<div class="msg '+b[0]+'"><div class="bb">'+b[1].map((p,pi)=> typeof p==='string'
+        ? p.split(/(\s+)/).map(w=>/^\s+$/.test(w)?w:(w?'<button type="button" class="tk" data-t="'+bi+'-'+pi+'-'+esc0(w)+'">'+esc(w)+'</button>':'')).join('')
+        : '<button type="button" class="tk" data-t="'+bi+'-'+pi+'" data-e="'+(p.o?'1':'')+'">'+esc(p.x)+'</button>').join('')+'</div></div>').join('')+'</div>'+
+      '<button type="button" class="btn next" id="chk">확인</button>';
+  } else if(q.kind==='swipe'){
+    const word = q.show ? it.o : it.x;
+    body='<div class="swipe" id="sw"><div class="swc" id="sc"><p class="qsent" style="margin:0">'+esc(it.s).replace('□','<span class="mark">'+esc(word)+'</span>')+'</p>'+
+      '<span class="stamp no" id="st-no">틀림</span><span class="stamp ok" id="st-ok">맞음</span></div></div>'+
+      '<div class="swbtn"><button type="button" class="btn" data-sw="0">← 틀림</button><button type="button" class="btn" data-sw="1">맞음 →</button></div>';
   } else {
     body='<p class="note" style="margin:0 0 6px">제'+it.a+'항 · '+esc(ART[it.a].k)+'</p>'+
       '<div class="blankrow">'+esc(it.b)+'<input id="bi" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="빈칸">'+esc(it.f)+'</div>'+
@@ -776,7 +819,12 @@ function renderQ(){
     '<div class="bar"><i style="width:'+(sess.i/n*100)+'%"></i></div>'+
     '<div class="qkind">'+KIND_LABEL[q.kind]+(it.l?' · '+esc(it.l):'')+'</div>'+body+'<div class="fb" id="fb"></div>';
   document.getElementById('quit').onclick=()=>{ sess.res.length?renderResult():go('practice'); };
-  if(q.kind==='blank'){
+  if(q.kind==='spot'){
+    app.querySelectorAll('.tk').forEach(b=>b.onclick=()=>b.classList.toggle('sel'));
+    document.getElementById('chk').onclick=()=>answerSpot(q);
+  } else if(q.kind==='swipe'){
+    bindSwipe(q);
+  } else if(q.kind==='blank'){
     const inp=document.getElementById('bi'); inp.focus();
     const done=()=>answerBlank(q, inp.value);
     document.getElementById('chk').onclick=done;
@@ -819,6 +867,44 @@ function answerBlank(q, val){
   if(!ok) sess.res[sess.res.length-1].chosen=val;
 }
 
+// 틀린 곳 찾기: 틀린 것을 다 고르고 맞는 것은 안 골라야 정답
+function spotErrors(it){ const out=[]; it.t.forEach(b=>b[1].forEach(p=>{ if(typeof p!=='string' && p.o) out.push(p); })); return out; }
+function spotWhy(it){ return spotErrors(it).map(p=>'<div class="why" style="margin-top:8px"><b><s style="color:var(--muted)">'+esc(p.x)+'</s> → '+esc(p.o)+'</b> · 제'+p.a+'항 '+esc(ART[p.a]?ART[p.a].k:'')+(p.w?'<br>'+esc(p.w):'')+'</div>').join(''); }
+function answerSpot(q){
+  const tks=[...app.querySelectorAll('.tk')]; let miss=0, extra=0;
+  tks.forEach(b=>{ const e=b.dataset.e==='1', sel=b.classList.contains('sel');
+    if(e && sel) b.classList.add('hit'); else if(e && !sel){ b.classList.add('missed'); miss++; } else if(!e && sel){ b.classList.add('oops'); extra++; }
+    b.disabled=true; });
+  document.getElementById('chk').remove();
+  const ok = !miss && !extra;
+  const head = ok ? '' : '<div class="note" style="margin:0 0 4px">'+(miss?'못 찾은 것 '+miss+'개':'')+(miss&&extra?' · ':'')+(extra?'맞는데 고른 것 '+extra+'개':'')+'</div>';
+  afterAnswer(ok, q, head+spotWhy(q.it));
+  app.querySelectorAll('.tk.hit, .tk.missed').forEach(b=>{ const p=findPart(q.it, b.dataset.t); if(p) b.innerHTML='<s>'+esc(p.x)+'</s><b>'+esc(p.o)+'</b>'; });
+}
+function findPart(it, t){ const [bi,pi]=t.split('-').map(Number); const p=it.t[bi]&&it.t[bi][1][pi]; return p && typeof p!=='string' ? p : null; }
+// 쓱쓱: 오른쪽 = 맞음, 왼쪽 = 틀림. 손가락으로 넘기거나 버튼
+function bindSwipe(q){
+  const card=document.getElementById('sc'), ok=document.getElementById('st-ok'), no=document.getElementById('st-no');
+  let x0=null, dx=0, done=false;
+  const set = d => { dx=d; card.style.transform='translateX('+d+'px) rotate('+(d/18)+'deg)'; ok.style.opacity=Math.min(1,Math.max(0,d/70)); no.style.opacity=Math.min(1,Math.max(0,-d/70)); };
+  const fire = yes => { if(done) return; done=true; card.style.transition='transform .25s'; set(yes?420:-420); setTimeout(()=>answerSwipe(q, yes), 180); };
+  card.addEventListener('pointerdown', e=>{ if(done) return; x0=e.clientX; card.style.transition='none'; card.setPointerCapture(e.pointerId); });
+  card.addEventListener('pointermove', e=>{ if(x0==null||done) return; set(e.clientX-x0); });
+  const up = ()=>{ if(x0==null||done) return; x0=null; if(dx>80) fire(true); else if(dx<-80) fire(false); else { card.style.transition='transform .2s'; set(0); } };
+  card.addEventListener('pointerup', up); card.addEventListener('pointercancel', up);
+  app.querySelectorAll('[data-sw]').forEach(b=>b.onclick=()=>fire(b.dataset.sw==='1'));
+  const key = e=>{ if(e.key==='ArrowRight') fire(true); else if(e.key==='ArrowLeft') fire(false); };
+  document.addEventListener('keydown', key, {once:true});
+}
+function answerSwipe(q, yes){
+  const it=q.it, ok = yes===q.show;
+  app.querySelectorAll('[data-sw]').forEach(b=>b.disabled=true);
+  const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, q.show?'ok':'fix', it.x)+'</p></div>';
+  if(ok && sess.i+1<sess.qs.length){ record(q, true); sess.res.push({q, ok:true}); const fb=document.getElementById('fb'); fb.innerHTML='<div class="okword">정답</div>'; setTimeout(()=>{ if(sess && sess.qs[sess.i]===q){ sess.i++; renderQ(); } }, 650); return; }
+  afterAnswer(ok, q, ok?'':whyLine(it));
+  if(!ok) sess.res[sess.res.length-1].chosen = q.show ? it.o : it.x;
+}
+
 /* ---------- 결과 */
 function renderResult(){
   view='result';
@@ -829,6 +915,8 @@ function renderResult(){
       const it=r.q.it;
       if(r.q.kind==='blank') return '<li><div class="w1">'+esc(it.b)+'<span class="fix"><s>'+esc(r.chosen||'')+'</s><b>'+esc(it.k)+'</b></span>'+esc(it.f)+'</div><div class="w2">제'+it.a+'항 · '+esc(ART[it.a].k)+'</div></li>';
       const loc = it.l ? ' · '+it.l : '';
+      if(r.q.kind==='spot') return '<li>'+spotWhy(it)+'</li>';
+      if(r.q.kind==='swipe') return '<li><div class="w1">'+sentFilled(it,'fix',it.x)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
       if(r.q.kind==='basis') return '<li><div class="w1">'+sentFilled(it,'mark')+'</div><div class="w2">근거: '+esc('제'+it.a+'항'+partLabel(it))+' · '+esc(ART[it.a].k+loc)+'</div></li>';
       return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
     }).join('')+'</ul>';
