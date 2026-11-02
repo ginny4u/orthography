@@ -512,6 +512,8 @@ function weight(id){ const s=store.st[id]; if(store.wrong[id]) return 5; if(!s) 
 function sample(pool, n){
   return pool.map(q=>({q, k:Math.pow(Math.random(), 1/weight(q.id))})).sort((a,b)=>b.k-a.k).slice(0,n).map(x=>x.q);
 }
+// 근거 조항 선택지: 조항 원문은 '다음 말들은 각각 구별하여 적는다'처럼 그 자체로는 추론이 안 되므로 핵심 풀이의 첫 문장을 보여 준다
+function ruleGist(n){ const c=(ART[n]&&ART[n].core)||ART[n].t; const m=c.match(/^.*?[.。](?=\s|$)/); return (m?m[0]:c).trim(); }
 function basisOptions(n){
   const near = new Set();
   D.groups.forEach(g=>{ if(g.includes(n)) g.forEach(x=>{ if(x!==n && ART[x]) near.add(x); }); });
@@ -922,7 +924,7 @@ function renderQ(){
   } else if(q.kind==='basis'){
     body='<p class="qsent">'+sentFilled(it,'mark')+'</p>'+
       '<p class="note" style="margin:-8px 0 14px">‘<s>'+esc(it.x)+'</s>’'+josa(it.x,'이','가')+' 아니라 ‘<b>'+esc(it.o)+'</b>’'+josa(it.o,'으로','로')+' 적는 까닭은? 맞는 규칙을 고르세요.</p>'+
-      '<div class="opts">'+q.opts.map((a,k)=>'<button type="button" class="opt rule" data-o="'+k+'"><small>제'+a+'항 · '+esc(ART[a].k)+'</small>'+esc(ART[a].t)+'</button>').join('')+'</div>';
+      '<div class="opts">'+q.opts.map((a,k)=>'<button type="button" class="opt rule" data-o="'+k+'"><small>제'+a+'항 · '+esc(ART[a].k)+'</small>'+esc(ruleGist(a))+'</button>').join('')+'</div>';
   } else if(q.kind==='spot'){
     body='<p class="note" style="margin:0 0 12px">틀린 표기가 있으면 모두 눌러 고르세요. 하나도 없을 수도 있어요.</p><div class="chat">'+it.t.map((b,bi)=>
       '<div class="msg '+b[0]+'"><div class="bb">'+b[1].map((p,pi)=> typeof p==='string'
