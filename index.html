@@ -13,8 +13,8 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 /* 한 줄 폭(최대 560px). 본문 Pretendard 자간 -3%, 글자 크기 짝수(최소 12), 한 줄은 행간 auto·여러 줄은 150%.
    제목은 주아체. 색은 로고 크레파스 빨강 하나: 주요 버튼·선택·교정 표시. 틀린 답은 회색 줄긋기. */
@@ -38,6 +38,7 @@ button{font:inherit;letter-spacing:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 p{margin:0}
 
+.eyebrow{font-size:12px;line-height:normal;color:var(--muted);margin-bottom:2px}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 20px}
 .brand{font-family:var(--jua);font-size:20px;letter-spacing:0;line-height:normal;margin:0;cursor:pointer;white-space:nowrap;font-weight:400}
 .brand .heart{color:var(--accent);margin-right:6px;font-family:var(--sans)}
@@ -58,7 +59,7 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{display:inline-flex;align-items:center;height:32px;padding:0 12px;border:1px solid var(--rule);background:var(--paper);border-radius:999px;font-size:14px;font-weight:500;line-height:normal;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.chip:disabled{cursor:default;border-style:dashed;color:#b9b4ac;background:transparent}
+.chip:disabled{cursor:default;border-style:dashed;color:var(--muted);background:transparent;opacity:.8}
 .note{font-size:14px;line-height:1.5;color:var(--muted);margin:8px 0 0}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:48px;padding:0 20px;border-radius:12px;border:1px solid var(--rule);background:var(--paper);font-size:16px;font-weight:600;line-height:normal}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;height:56px;font-size:18px;font-weight:700;border-radius:14px}
@@ -279,7 +280,7 @@ const TYPES = [
   {id:'pick', label:'바른 표기'}, {id:'basis', label:'근거 조항'},
   {id:'blank', label:'조항 빈칸'}, {id:'mix', label:'섞어서'},
 ];
-const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 대기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 · 맞으면 →  틀리면 ←'};
+const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 고르기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 · 맞으면 →  틀리면 ←'};
 function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
 const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
 const BLANKS = D.blanks.map(b=>Object.assign({id:'b'+h(b.a+'|'+b.b+'|'+b.k)}, b));
@@ -343,7 +344,7 @@ function bumpStreak(){ const k=store.sk, t=today(); if(k.last===t) return; k.n =
 let srv = {state:'', board:null};   // state: loading · ok · noserver · neterr · relogin
 function api(action, payload){
   const ctl = typeof AbortController!=='undefined' ? new AbortController() : null;
-  const tm = ctl ? setTimeout(()=>ctl.abort(), 30000) : null;
+  const tm = ctl ? setTimeout(()=>ctl.abort(), 15000) : null;
   return fetch(API, {method:'POST', body:JSON.stringify(Object.assign({action}, payload||{})), signal: ctl ? ctl.signal : undefined})
     .then(r=>r.json()).then(x=>{ clearTimeout(tm); return x || {ok:false, error:'빈 응답'}; })
     .catch(()=>{ clearTimeout(tm); return {ok:false, net:true, error:'서버에 연결되지 않습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.'}; });
@@ -494,9 +495,9 @@ function prepare(q){
 
 /* ---------- 화면 전환 */
 let tab = 'practice', sess = null, view = '';
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ sess=null; go(b.dataset.tab); });
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ leaveSess(); sess=null; go(b.dataset.tab); });
 document.getElementById('brand').onclick=()=>{
-  sess=null;
+  leaveSess(); sess=null;
   if(auth) go('practice'); else if(guest) renderPick(); else renderLogin(L.step==='wait'?'wait':'name');
   window.scrollTo(0,0);
 };
@@ -530,9 +531,9 @@ function renderLogin(step){
   else if(L.step==='pick') html=hero('같은 이름의 학생이 있습니다. 본인을 선택해 주세요.')+
     '<div class="spick">'+L.matches.map((m,i)=>'<button type="button" class="scard" data-m="'+i+'"><span class="nm">'+esc(m.label)+'</span></button>').join('')+'</div>'+
     '<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" data-back>이름 다시 입력하기</button></p>';
-  else if(L.step==='pw') html=hero(L.re ? '로그인이 만료되었습니다. 비밀번호를 다시 입력해 주세요.' : '내신 트래커에서 사용하는 비밀번호 4자리를 입력하세요.')+
+  else if(L.step==='pw') html=hero(L.re ? '로그인이 만료되었습니다. 비밀번호를 다시 입력해 주세요.' : '내신 트래커에서 사용하는 비밀번호 4자리를 입력해 주세요.')+
     '<form class="form" id="f-pw" novalidate><label for="in-pw">'+esc(L.pick.label)+' · 비밀번호</label>'+pw('in-pw','current-password')+
-    '<p class="note">처음 로그인하는 경우 0000을 입력하세요.</p>'+err+
+    '<p class="note">처음 로그인하는 경우 0000을 입력해 주세요.</p>'+err+
     '<button class="btn primary wide" type="submit">로그인</button></form>'+
     '<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" data-back>'+(L.re?'다른 학생으로 로그인':'본인이 아닙니다')+'</button></p>';
   else if(L.step==='change') html=hero('처음 로그인했으니 비밀번호를 먼저 바꿔 주세요.')+
@@ -660,6 +661,7 @@ function statsHTML(){
 // 캐릭터 한마디: 순위표 상황에 맞춰
 function bubbleText(){
   if(!auth) return '학교를 골라 범위를 미리 볼 수 있습니다.';
+  if(srv.state==='relogin') return '로그인이 만료됐어요. 다시 로그인하면 기록이 이어집니다.';
   const b = srv.board && srv.board.school ? srv.board.school.week : null, me = b && b.me;
   const t = todayCount();
   if(me && me.up) return me.up.gap===1 ? '한 문제만 더 맞히면 '+me.up.r+'위예요.' : me.up.gap+'문제만 더 맞히면 '+me.up.r+'위예요.';
@@ -672,7 +674,6 @@ function bubbleText(){
     if(i===0 && rows[1] && rows[0].avg>0) return '학교 대항 1위예요. '+rows[1].s+'가 '+(Math.round((rows[0].avg-rows[1].avg)*10)/10)+'개 차이로 따라와요.';
   }
   if(t) return '오늘 '+t+'문제 맞혔어요. 조금만 더?';
-  if(srv.state==='relogin') return '로그인이 만료됐어요. 다시 로그인하면 기록이 이어집니다.';
   return '느낌이 아니라 조항을 근거로 골라 보세요.';
 }
 function rankHTML(b, all, teach){
@@ -715,7 +716,7 @@ function boardHTML(){
   else if(teach && S.state==='noserver') body='<div class="rank-msg">순위표는 준비 중입니다.</div>';
   else if(srv.state==='relogin' && !teach) body='<div class="rank-msg go">로그인이 만료되었습니다. <button type="button" class="linkbtn" id="relog">다시 로그인</button>하면 기록이 순위에 반영됩니다.</div>';
   else if(srv.state==='noserver' && !teach) body='<div class="rank-msg">순위표는 준비 중입니다. 푼 기록은 이 기기에 모아 두었다가 순위표가 열리면 반영됩니다.</div>';
-  else if(!b) body='<div class="rank-msg">'+(S.state==='neterr'?'순위를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.':'순위 불러오는 중…')+'</div>';
+  else if(!b) body='<div class="rank-msg">'+(S.state==='neterr'?'순위를 불러오지 못했습니다. <button type="button" class="linkbtn" id="retry">다시 시도</button>':'순위 불러오는 중…')+'</div>';
   else body=rankHTML(b, sc==='all', teach);
   return '<div class="card"><div class="seg">'+
     chips([{id:'school', label:store.school}, {id:'all', label:'전체'}], sc, 'sc', false)+
@@ -768,6 +769,7 @@ function renderHome(){
   const t2=document.getElementById('tout2'); if(t2) t2.onclick=leaveTeach;
   const rt=document.getElementById('reteach'); if(rt) rt.onclick=()=>{ teachTok=''; ssSet('orth.admin', null); guest=false; resetL(); renderLogin('admin'); };
   const rl=document.getElementById('relog'); if(rl) rl.onclick=relogin;
+  const ry=document.getElementById('retry'); if(ry) ry.onclick=()=>{ if(guest){ srvT={school:'', board:null, state:''}; renderHome(); } else { srv.state='loading'; renderHome(); refresh(false); } };
   document.getElementById('tog').onclick=()=>{ store.open=!store.open; save(); renderHome(); };
   app.querySelectorAll('[data-src]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.src, cur=srcSel().slice(), i=cur.indexOf(id);
@@ -788,8 +790,10 @@ function renderHome(){
 }
 
 /* ---------- 세션 */
+function leaveSess(){ if(sess && sess.unkey){ sess.unkey(); sess.unkey=null; } if(sess && sess.timer){ clearTimeout(sess.timer); sess.timer=null; } }
 function startSession(qs, meta){
   if(!qs.length) return;
+  leaveSess();
   sess = {qs: qs.map(prepare), i:0, res:[], meta:meta||{}};
   renderQ();
 }
@@ -858,9 +862,9 @@ function renderQ(){
     '<div class="qtop"><span>'+(sess.i+1)+' / '+n+'</span><button type="button" class="linkbtn" id="quit">그만하기</button></div>'+
     '<div class="bar"><i style="width:'+(sess.i/n*100)+'%"></i></div>'+
     '<div class="qkind">'+KIND_LABEL[q.kind]+(it.l?' · '+esc(it.l):'')+'</div>'+body+'<div class="fb" id="fb"></div>';
-  document.getElementById('quit').onclick=()=>{ sess.res.length?renderResult():go('practice'); };
+  document.getElementById('quit').onclick=()=>{ leaveSess(); if(sess.res.length) renderResult(); else if(sess.meta.from==='art'){ sess=null; go('rules'); } else go('practice'); };
   if(q.kind==='spot'){
-    app.querySelectorAll('.tk').forEach(b=>b.onclick=()=>b.classList.toggle('sel'));
+    app.querySelectorAll('.tk').forEach(b=>{ b.setAttribute('aria-pressed','false'); b.onclick=()=>{ const on=b.classList.toggle('sel'); b.setAttribute('aria-pressed', on?'true':'false'); }; });
     document.getElementById('chk').onclick=()=>answerSpot(q);
   } else if(q.kind==='swipe'){
     bindSwipe(q);
@@ -897,6 +901,7 @@ function answerOpt(q, k){
 }
 function answerBlank(q, val){
   if(!String(val).trim()){ document.getElementById('bi').focus(); return; }
+  const it=q.it;
   // 앞뒤 낱말을 붙여 써도 맞게 침("소리대로"처럼)
   const pre=(it.b.match(/(\S+)\s*$/)||['',''])[1], post=(it.f.match(/^\s*(\S+)/)||['',''])[1];
   const v=norm(val), ok = [it.k].concat(it.alt||[]).some(a=>[a, a+post, pre+a, pre+a+post].some(c=>norm(c)===v));
@@ -946,7 +951,8 @@ function bindSwipe(q){
     card.addEventListener('pointermove', e=>move(e.clientX));
     card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
   }
-  const key = e=>{ if(e.key==='ArrowRight'){ fire(true); document.removeEventListener('keydown', key); } else if(e.key==='ArrowLeft'){ fire(false); document.removeEventListener('keydown', key); } };
+  const S=sess;
+  const key = e=>{ if(sess!==S || view!=='q' || S.qs[S.i]!==q){ document.removeEventListener('keydown', key); return; } if(e.key==='ArrowRight'){ fire(true); document.removeEventListener('keydown', key); } else if(e.key==='ArrowLeft'){ fire(false); document.removeEventListener('keydown', key); } };
   document.addEventListener('keydown', key);
   sess.unkey = ()=>document.removeEventListener('keydown', key);
 }
@@ -955,7 +961,7 @@ function answerSwipe(q, yes){
   if(sess.unkey){ sess.unkey(); sess.unkey=null; }
   const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, q.show?'ok':'fix', it.x)+'</p>'+
     '<img class="stampbig" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'"></div>';
-  if(ok){ record(q, true); sess.res.push({q, ok:true}); setTimeout(()=>{ if(sess && sess.qs[sess.i]===q){ sess.i++; sess.i<sess.qs.length ? renderQ() : renderResult(); } }, 700); return; }
+  if(ok){ record(q, true); sess.res.push({q, ok:true}); const S=sess; S.timer=setTimeout(()=>{ S.timer=null; if(sess===S && view==='q' && S.qs[S.i]===q){ S.i++; S.i<S.qs.length ? renderQ() : renderResult(); } }, 700); return; }
   afterAnswer(ok, q, whyLine(it));
   if(!ok) sess.res[sess.res.length-1].chosen = q.show ? it.o : it.x;
 }
@@ -988,7 +994,7 @@ function renderResult(){
     if(sess.meta.type) return startMode(sess.meta.type);
     startSession(sample(homePool(), store.n), {from:'home'});
   };
-  document.getElementById('home2').onclick=()=>{ sess=null; go('practice'); };
+  document.getElementById('home2').onclick=()=>{ const art=sess.meta.from==='art'; sess=null; go(art?'rules':'practice'); };
   flush();
 }
 
