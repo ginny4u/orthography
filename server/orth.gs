@@ -145,10 +145,24 @@ function orthBoard_(me, store, env, myRow) {
     return { id: id, n: s.name, s: s.school, w: r.week === week ? Number(r.weekN) || 0 : 0, t: Number(r.total) || 0 };
   });
   var mates = people.filter(function (p) { return p.s === me.school; });
+  // 학교 대항: 학교마다 재원생 수(n), 맞힌 사람 수(p), 맞힌 문제 합(d). 화면에서 1인당 평균으로 줄 세움
+  var sch = {};
+  Object.keys(active).forEach(function (id) {
+    var k = active[id].school; if (!k) return;
+    if (!sch[k]) sch[k] = { s: k, n: 0, pw: 0, pt: 0, w: 0, t: 0 };
+    sch[k].n++;
+  });
+  people.forEach(function (p) {
+    var g = sch[p.s]; if (!g) return;
+    if (p.w > 0) { g.pw++; g.w += p.w; }
+    if (p.t > 0) { g.pt++; g.t += p.t; }
+  });
+  var schools = Object.keys(sch).map(function (k) { return sch[k]; });
   return {
     week: week,
     school: { week: orthRank_(mates, 'w', me.id, false), total: orthRank_(mates, 't', me.id, false) },
-    all: { week: orthRank_(people, 'w', me.id, true), total: orthRank_(people, 't', me.id, true) }
+    all: { week: orthRank_(people, 'w', me.id, true), total: orthRank_(people, 't', me.id, true) },
+    sch: schools
   };
 }
 function orthHomeData_(st, store, env) {
@@ -344,7 +358,7 @@ function orthCheck() {
     if (en.propGet && en.propPut) ok('로그인 유지(30일) 저장소 준비됨'); else ng('스크립트 속성을 쓸 수 없습니다.');
   } catch (e) { ng('시트 확인 중 오류: ' + (e && e.message ? e.message : e)); }
 
-  try { orthSelfTest_(); ok('메모리 시험 통과 (선생님 순위표 · 로그인·첫 비밀번호 변경 · 30일 유지·연장·만료 · 비밀번호 바뀌면 풀림 · 하루 한 번만 셈 · 같은 묶음 두 번 막기 · 오답 노트 · 학교·전체 순위 · 주가 바뀌면 이번 주 새로 · 퇴원생 빠짐)'); }
+  try { orthSelfTest_(); ok('메모리 시험 통과 (선생님 순위표 · 로그인·첫 비밀번호 변경 · 30일 유지·연장·만료 · 비밀번호 바뀌면 풀림 · 하루 한 번만 셈 · 같은 묶음 두 번 막기 · 오답 노트 · 학교·전체 순위 · 학교 대항 합계 · 주가 바뀌면 이번 주 새로 · 퇴원생 빠짐)'); }
   catch (e) { ng('메모리 시험 중 오류: ' + (e && e.message ? e.message : e)); }
   log();
 }
@@ -429,6 +443,8 @@ function orthSelfTest_() {
   must(b.school.week.me.r === 2 && b.school.week.me.up.r === 1 && b.school.week.me.up.gap === 2, '학교 순위 내 자리: ' + JSON.stringify(b.school.week.me));
   must(b.all.week.top[0].n[0].join() === '다다다,나고' && b.all.week.me.r === 3 && b.all.week.of === 3, '전체 순위: ' + JSON.stringify(b.all.week));
   must(b.school.week.top.every(function (g) { return g.n.every(function (x) { return x[0] !== '다다다'; }); }), '다른 학교가 학교 순위에 섞임');
+  var ga = b.sch.filter(function (x) { return x.s === '가고'; })[0], na = b.sch.filter(function (x) { return x.s === '나고'; })[0];
+  must(ga && ga.n === 3 && ga.pw === 2 && ga.w === 8 && na && na.n === 1 && na.w === 7, '학교 대항 합계: ' + JSON.stringify(b.sch));
   // 선생님 페이지 순위표: 선생님 비밀번호로만
   var tb = P({ action: 'orthBoard', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
   must(tb.ok && tb.board.school.week.top[0].n[0][0] === '나나나' && tb.board.school.week.of === 2 && !tb.board.school.week.me && tb.board.all.week.of === 3, '선생님 순위표: ' + JSON.stringify(tb.board || tb.error));

@@ -156,6 +156,17 @@ details.art[open] summary .no{color:var(--accent)}
 .form input{font:inherit;letter-spacing:inherit;font-size:18px;padding:12px;border:1px solid var(--rule);border-radius:12px;background:var(--paper);color:var(--ink);width:100%}
 .form .btn.wide{margin-top:16px}
 .err{color:var(--accent);font-size:14px;line-height:1.5;margin:6px 0 0}
+/* 학교 대항 */
+.vs{display:grid;gap:8px;margin-top:12px}
+.vs .v{display:grid;grid-template-columns:5.2em 1fr auto;gap:10px;align-items:center;font-size:14px;line-height:normal}
+.vs .v .s{font-weight:600;white-space:nowrap}
+.vs .v .m{display:block;height:8px;background:var(--plate);border-radius:4px;overflow:hidden}
+.vs .v .m i{display:block;height:100%;background:#d8cfc4;border-radius:4px}
+.vs .v.me .m i{background:var(--accent)}
+.vs .v.me .s{color:var(--accent)}
+.vs .v .d{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.vs .v .d b{color:var(--ink);font-weight:600}
+.vs .v.me .d b{color:var(--accent)}
 /* 순위표 */
 .seg{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-bottom:8px}
 .seg .chips{gap:6px}
@@ -596,6 +607,12 @@ function bubbleText(){
   if(me && me.up) return me.up.gap===1 ? '한 문제만 더 맞히면 '+me.up.r+'위예요.' : me.up.gap+'문제만 더 맞히면 '+me.up.r+'위예요.';
   if(me && me.tied>1) return '공동 1위예요. 한 문제만 더 맞히면 단독 1위!';
   if(me && me.r===1) return '이번 주 1위예요. 자리 지켜 볼까요?';
+  const sch = srv.board && srv.board.sch;
+  if(sch && sch.length>1){
+    const rows = sch.map(x=>({s:x.s, avg:x.n?x.w/x.n:0})).sort((a,b)=>b.avg-a.avg), i = rows.findIndex(r=>r.s===store.school);
+    if(i>0) return rows[0].s+'보다 우리 학교가 1인당 '+(Math.round((rows[0].avg-rows[i].avg)*10)/10)+'개 뒤져요. 한 문제가 평균을 올립니다.';
+    if(i===0 && rows[1] && rows[0].avg>0) return '학교 대항 1위예요. '+rows[1].s+'가 '+(Math.round((rows[0].avg-rows[1].avg)*10)/10)+'개 차이로 따라와요.';
+  }
   if(t) return '오늘 '+t+'문제 맞혔어요. 조금만 더?';
   if(srv.state==='relogin') return '로그인이 만료됐어요. 다시 로그인하면 기록이 이어집니다.';
   return '느낌이 아니라 조항을 근거로 골라 보세요.';
@@ -616,6 +633,18 @@ function rankHTML(b, all, teach){
     else msg='현재 1위입니다.';
   } else msg = '한 문제만 맞혀도 순위에 올라갑니다.';
   return '<div class="rank">'+rows+'</div><div class="rank-msg go">'+msg+'</div>';
+}
+// 학교 대항: 1인당 맞힌 문제(학교 전체 재원생 기준)로 줄 세움
+function vsHTML(){
+  const teach = !auth && guest && !!teachTok, S = teach ? srvT : srv;
+  const sch = S.board && S.board.sch; if(!sch || !sch.length) return '';
+  const per = store.bs.per==='total' ? 'total' : 'week', key = per==='week'?'w':'t', pk = per==='week'?'pw':'pt';
+  const rows = sch.map(x=>({s:x.s, n:x.n, p:x[pk], d:x[key], avg: x.n ? x[key]/x.n : 0})).sort((a,b)=>b.avg-a.avg || b.d-a.d);
+  const max = Math.max(...rows.map(r=>r.avg), 0.0001);
+  return '<h2 class="sec">학교 대항 · '+(per==='week'?'이번 주':'누적')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
+    '<div class="v'+(r.s===store.school?' me':'')+'"><span class="s">'+(i+1)+'위 '+esc(r.s)+'</span><span class="m"><i style="width:'+(r.avg/max*100)+'%"></i></span>'+
+    '<span class="d">1인당 <b>'+(Math.round(r.avg*10)/10)+'개</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
+    '</div><p class="note">학교 재원생 전체 기준 1인당 맞힌 문제 수입니다. 안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
 }
 function boardHTML(){
   const teach = !auth && guest && !!teachTok;
@@ -663,7 +692,7 @@ function renderHome(){
    '<button type="button" class="btn primary wide" id="start"'+(pool.length?'':' disabled')+'>'+store.n+'문제 시작</button>'+
    '<div class="setline"><span>'+esc(summary)+'</span><button type="button" class="linkbtn" id="tog">'+(store.open?'닫기':'바꾸기')+'</button></div>'+settings+
    (wrongN?'<p class="note" style="text-align:center;margin-top:16px"><button type="button" class="linkbtn" id="towrong">오답만 풀기 ('+wrongN+')</button></p>':'')+
-   '<h2 class="sec">순위표</h2>'+boardHTML();
+   vsHTML()+'<h2 class="sec">순위표</h2>'+boardHTML();
   const chs=document.getElementById('chs'); if(chs) chs.onclick=renderPick;
   const out=document.getElementById('out'); if(out) out.onclick=logout;
   const t2=document.getElementById('tout2'); if(t2) t2.onclick=leaveTeach;
