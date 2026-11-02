@@ -104,6 +104,7 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .opt{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:14px;text-align:left;font-size:16px;line-height:1.5}
 .opts.two .opt{text-align:center;font-size:18px;font-weight:500;line-height:normal;padding:16px 10px}
 .opt small{display:block;color:var(--muted);font-size:12px;line-height:normal;margin-top:4px;font-weight:400}
+.opt.rule{font-size:15px}.opt.rule small{margin:0 0 4px}
 .opt.ok{border-color:var(--accent);background:var(--soft);color:var(--accent);font-weight:700}
 .opt.ok::before{content:"✓ "}
 .opt.ng{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--muted)}
@@ -305,7 +306,7 @@ const TYPES = [
   {id:'pick', label:'바른 표기 고르기', desc:'문장을 보고 둘 중 맞는 표기를 고릅니다.'},
   {id:'swipe', label:'쓱쓱 넘기기', desc:'문장 하나씩, 맞으면 오른쪽 · 틀리면 왼쪽으로 밀어요.'},
   {id:'spot', label:'틀린 곳 찾기', desc:'카톡 대화에 숨은 틀린 표기를 눌러 찾아요.'},
-  {id:'basis', label:'근거 조항 고르기', desc:'이 표기가 왜 맞는지, 조항을 고릅니다.'},
+  {id:'basis', label:'근거 조항 고르기', desc:'이 표기가 왜 맞는지, 규칙을 읽고 고릅니다.'},
   {id:'blank', label:'조항 빈칸 채우기', desc:'조항 원문의 빈칸에 들어갈 말을 씁니다.'},
 ];
 const KIND_LABEL = {pick:'바른 표기 고르기', basis:'근거 조항 고르기', blank:'조항 빈칸', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
@@ -459,6 +460,7 @@ const esc = s => esc0(s).replace(/-/g,'‑');
 const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
 const norm = s => String(s).replace(/[\s‘’'"“”\-·,.()]/g,'');
 function artLabel(n){ const a=ART[n]; return '제'+n+'항'+(a?' · '+a.k:''); }
+function josa(w, withTail, noTail){ const c=w.replace(/[^가-힣]/g,'').slice(-1); if(!c) return noTail; const t=(c.charCodeAt(0)-0xAC00)%28; return (t===0 || (t===8 && withTail==='으로')) ? noTail : withTail; }
 function partLabel(p){ return p && p.p ? ' '+(/^\d/.test(p.p)?p.p:'['+p.p+']') : ''; }
 const hero = t => '<div class="hero"><img src="logo.webp" alt="" width="80" height="80"><div class="bubble">'+t+'</div></div>';
 
@@ -554,7 +556,7 @@ function renderLogin(step){
     '<button class="btn primary wide" type="submit">다음</button></form>'+
     '<p class="note" style="text-align:center;margin-top:28px"><button type="button" class="linkbtn" id="toteach">선생님 페이지</button> <button type="button" class="linkbtn" id="toghost" style="text-decoration:none;margin-left:10px" aria-label="졸업생">👻</button></p>';
   else if(L.step==='ghost') html=hero('👻')+
-    '<form class="form" id="f-ghost" novalidate><label for="in-gcode">코드</label>'+
+    '<form class="form" id="f-ghost" novalidate><label for="in-gcode">비밀 코드</label>'+
     '<input id="in-gcode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••">'+err+
     '<button class="btn primary wide" type="submit">들어가기</button></form>'+
     '<p class="note" style="text-align:center;margin-top:14px"><button type="button" class="linkbtn" data-back>학생 로그인으로</button></p>';
@@ -916,8 +918,9 @@ function renderQ(){
     body='<p class="qsent" id="qs">'+sentFilled(it,'blank')+'</p>'+
       '<div class="opts two">'+q.opts.map((o,k)=>'<button type="button" class="opt" data-o="'+k+'">'+esc(o)+'</button>').join('')+'</div>';
   } else if(q.kind==='basis'){
-    body='<p class="qsent">'+sentFilled(it,'mark')+'</p><p class="note" style="margin:-8px 0 14px">밑줄 친 표기의 근거가 되는 조항을 고르세요.</p>'+
-      '<div class="opts">'+q.opts.map((a,k)=>'<button type="button" class="opt" data-o="'+k+'"><b>제'+a+'항</b><small>'+esc(ART[a].k)+'</small></button>').join('')+'</div>';
+    body='<p class="qsent">'+sentFilled(it,'mark')+'</p>'+
+      '<p class="note" style="margin:-8px 0 14px">‘<s>'+esc(it.x)+'</s>’'+josa(it.x,'이','가')+' 아니라 ‘<b>'+esc(it.o)+'</b>’'+josa(it.o,'으로','로')+' 적는 까닭은? 맞는 규칙을 고르세요.</p>'+
+      '<div class="opts">'+q.opts.map((a,k)=>'<button type="button" class="opt rule" data-o="'+k+'"><small>제'+a+'항 · '+esc(ART[a].k)+'</small>'+esc(ART[a].t)+'</button>').join('')+'</div>';
   } else if(q.kind==='spot'){
     body='<p class="note" style="margin:0 0 12px">틀린 표기가 있으면 모두 눌러 고르세요. 하나도 없을 수도 있어요.</p><div class="chat">'+it.t.map((b,bi)=>
       '<div class="msg '+b[0]+'"><div class="bb">'+b[1].map((p,pi)=> typeof p==='string'
