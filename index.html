@@ -1004,7 +1004,8 @@ const whyOne = (p, right) => '<div class="why" style="margin-top:8px"><b>'+(righ
 function spotWhy(it, bad, oops){
   // bad: 이번에 틀리게 보여 준 자리, oops: 맞는데 고른 자리. 둘 다 없으면(결과 화면 등) 전부
   const out=[]; it.t.forEach((b,bi)=>b[1].forEach((p,pi)=>{ if(typeof p==='string'||!p.o) return; const k=bi+'-'+pi;
-    if(!bad) out.push(whyOne(p,false)); else if(bad[k]) out.push(whyOne(p,false)); else if(oops && oops[k]) out.push(whyOne(p,true)); }));
+    // 틀리게 보여 준 자리는 '틀린→바른', 바르게 보여 준 자리도 헷갈리기 쉬운 곳이라 '맞는 표기'로 설명을 함께 보여 준다
+    if(!bad) out.push(whyOne(p,false)); else if(bad[k]) out.push(whyOne(p,false)); else out.push(whyOne(p,true)); }));
   return out.join('');
 }
 function answerSpot(q){
