@@ -690,7 +690,7 @@ function statsHTML(){
 }
 // 캐릭터 한마디: 순위표 상황에 맞춰
 function bubbleText(){
-  if(!auth) return '학교를 골라 범위를 미리 볼 수 있습니다.';
+  if(!auth) return '선생님 페이지예요. '+esc(store.school)+' 학생이 보는 화면 그대로입니다. 여기서 푼 건 기록되지 않아요.';
   if(srv.state==='relogin') return '로그인이 만료됐어요. 다시 로그인하면 기록이 이어집니다.';
   const b = srv.board && srv.board.school ? srv.board.school.week : null, me = b && b.me;
   const t = todayCount();
@@ -766,7 +766,7 @@ function renderHome(){
   const wrongN = Object.keys(store.wrong).length, sk = streak();
   const who = auth
     ? '<p class="who"><b>'+esc(auth.me.name)+'</b> · '+esc(store.school)+(sk>1?' · <span class="streak">'+sk+'일 연속</span>':'')+' · <button type="button" class="linkbtn" id="out">로그아웃</button></p>'
-    : '<p class="who"><b>'+esc(store.school)+'</b> 범위 미리 보기 · <button type="button" class="linkbtn" id="chs">학교 바꾸기</button>'+
+    : '<p class="who"><span class="badge">선생님 페이지</span> <b>'+esc(store.school)+'</b> 학생 화면 · <button type="button" class="linkbtn" id="chs">학교 바꾸기</button>'+
       (guest && API ? ' · <button type="button" class="linkbtn" id="tout2">선생님 페이지 나가기</button>' : '')+'</p>';
   if(guest && teachTok && API && (srvT.school!==store.school || (!srvT.board && !srvT.state))) loadTeachBoard();
   // 1) 유형 카드(반드시 하나 고름) → 2) 시작 버튼 → 3) 범위·문제 수는 접어 둠
