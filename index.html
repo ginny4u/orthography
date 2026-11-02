@@ -104,7 +104,7 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .opt.ng{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--muted)}
 .opt:disabled{cursor:default}
 .blankrow{font-size:18px;line-height:2;overflow-wrap:anywhere}
-.blankrow input{font:inherit;letter-spacing:inherit;width:7.5em;max-width:100%;border:0;border-bottom:2px solid var(--accent);background:transparent;color:var(--ink);text-align:center;padding:0 2px;border-radius:0}
+.blankrow input{font:inherit;letter-spacing:inherit;max-width:100%;border:1.5px solid var(--accent);background:var(--paper);color:var(--ink);text-align:center;padding:2px 6px;border-radius:8px;margin:0 2px;line-height:1.5}
 .fb{margin-top:20px;min-height:1.6em}
 .fb .okword{color:var(--accent);font-weight:700;font-size:16px;line-height:normal;margin-bottom:12px}
 .why{border-left:2px solid var(--accent);padding:2px 0 2px 12px;font-size:14px;line-height:1.5}
@@ -846,8 +846,8 @@ function renderQ(){
       '<span class="stamp no" id="st-no">틀림</span><span class="stamp ok" id="st-ok">맞음</span></div></div>'+
       '<div class="swhint"><span>← <b>틀림</b></span><span>'+(sess.i===0?'카드를 옆으로 밀어 보세요':'')+'</span><span><b>맞음</b> →</span></div>';
   } else {
-    body='<p class="note" style="margin:0 0 6px">제'+it.a+'항 · '+esc(ART[it.a].k)+'</p>'+
-      '<div class="blankrow">'+esc(it.b)+'<input id="bi" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="빈칸">'+esc(it.f)+'</div>'+
+    body='<p class="note" style="margin:0 0 12px">제'+it.a+'항 · 빈칸에 들어갈 말을 쓰세요. 앞뒤 낱말까지 같이 써도 됩니다.</p>'+
+      '<div class="blankrow">'+esc(it.b)+'<input id="bi" style="width:'+Math.min(12, Math.max(4, it.k.length+1.5))+'em" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="빈칸">'+esc(it.f)+'</div>'+
       '<button type="button" class="btn next" id="chk">확인</button>';
   }
   app.innerHTML =
@@ -893,7 +893,9 @@ function answerOpt(q, k){
 }
 function answerBlank(q, val){
   if(!String(val).trim()){ document.getElementById('bi').focus(); return; }
-  const it=q.it, ok = [it.k].concat(it.alt||[]).some(a=>norm(a)===norm(val));
+  // 앞뒤 낱말을 붙여 써도 맞게 침("소리대로"처럼)
+  const pre=(it.b.match(/(\S+)\s*$/)||['',''])[1], post=(it.f.match(/^\s*(\S+)/)||['',''])[1];
+  const v=norm(val), ok = [it.k].concat(it.alt||[]).some(a=>[a, a+post, pre+a, pre+a+post].some(c=>norm(c)===v));
   const inp=document.getElementById('bi'); inp.disabled=true;
   document.getElementById('chk').remove();
   if(!ok){
