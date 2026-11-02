@@ -760,8 +760,12 @@ function renderHome(){
     '<p class="note">이 범위 문제 '+pool.length+'개 · 틀린 문제와 안 푼 문제가 먼저 나옵니다.</p></div>';
   app.innerHTML =
    hero(bubbleText())+who+a2hsHTML()+
-   '<button type="button" class="btn primary wide" id="start"'+(pool.length?'':' disabled')+'>'+store.n+'문제 시작</button>'+
-   '<div class="setline"><span>'+esc(summary)+'</span><button type="button" class="linkbtn" id="tog">'+(store.open?'닫기':'바꾸기')+'</button></div>'+settings+
+   // 설정을 펼쳤을 때는 고른 다음 누르도록 시작 버튼을 설정 아래에 둔다
+   (store.open
+     ? '<div class="setline" style="margin-top:0"><span>'+esc(summary)+'</span><button type="button" class="linkbtn" id="tog">닫기</button></div>'+settings+
+       '<button type="button" class="btn primary wide" id="start" style="margin-top:16px"'+(pool.length?'':' disabled')+'>'+store.n+'문제 시작</button>'
+     : '<button type="button" class="btn primary wide" id="start"'+(pool.length?'':' disabled')+'>'+store.n+'문제 시작</button>'+
+       '<div class="setline"><span>'+esc(summary)+'</span><button type="button" class="linkbtn" id="tog">바꾸기</button></div>')+
    '<div class="modes">'+
      '<button type="button" class="mode" data-mode="spot"'+(nSpot?'':' disabled')+'><b>틀린 곳 찾기</b><span>카톡 속 틀린 표기 찾기 · '+nSpot+'</span></button>'+
      '<button type="button" class="mode" data-mode="swipe"'+(nSw?'':' disabled')+'><b>쓱쓱</b><span><span style="white-space:nowrap">맞으면 →</span> <span style="white-space:nowrap">틀리면 ←</span> · '+nSw+'</span></button>'+
