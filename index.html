@@ -962,14 +962,10 @@ function renderQ(){
 function afterAnswer(ok, q, extra, noStamp){
   record(q, ok); sess.res.push({q, ok, extra});
   const fb=document.getElementById('fb');
-  const okExtra = ok && q.it && q.it.a===30 && q.it.o ? hanjaHTML(q.it.o) : '';
-  fb.innerHTML = (noStamp?'':'<img class="stampfb" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'">') + (ok ? okExtra : (extra||'')) +
+  fb.innerHTML = (noStamp?'':'<img class="stampfb" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'">') + (extra||'') +
     '<button type="button" class="btn primary next" id="nx">'+(sess.i+1<sess.qs.length?'다음':'결과 보기')+'</button>';
   const nx=document.getElementById('nx'); nx.focus();
-  const go=()=>{ if(sess.timer){ clearTimeout(sess.timer); sess.timer=null; } sess.i++; sess.i<sess.qs.length ? renderQ() : renderResult(); };
-  nx.onclick=go;
-  // 정답이고 따로 읽을 설명이 없으면 도장만 잠깐 보여 주고 바로 다음 문제로
-  if(ok && !okExtra && sess.i+1<sess.qs.length){ const S=sess; S.timer=setTimeout(()=>{ S.timer=null; if(sess===S && view==='q' && S.qs[S.i]===q) go(); }, 900); }
+  nx.onclick=()=>{ sess.i++; sess.i<sess.qs.length ? renderQ() : renderResult(); };
 }
 function answerOpt(q, k){
   const btns=[...app.querySelectorAll('.opt')]; btns.forEach(b=>b.disabled=true);
@@ -977,12 +973,12 @@ function answerOpt(q, k){
     const chosen=q.opts[k], ok = chosen===q.it.o;
     btns.forEach((b,i)=>{ if(q.opts[i]===q.it.o) b.classList.add('ok'); else if(i===k) b.classList.add('ng'); });
     document.getElementById('qs').innerHTML = sentFilled(q.it, ok?'ok':'fix', chosen);
-    afterAnswer(ok, q, ok?'':whyLine(q.it));
+    afterAnswer(ok, q, whyLine(q.it));
     if(!ok) sess.res[sess.res.length-1].chosen=chosen;
   } else {
     const chosen=q.opts[k], ok = chosen===q.it.a;
     btns.forEach((b,i)=>{ if(q.opts[i]===q.it.a) b.classList.add('ok'); else if(i===k) b.classList.add('ng'); });
-    afterAnswer(ok, q, ok?'':whyLine(q.it));
+    afterAnswer(ok, q, whyLine(q.it));
   }
 }
 function answerBlank(q, val){
