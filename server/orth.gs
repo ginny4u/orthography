@@ -487,7 +487,7 @@ function orthSelfTest_() {
   var tb = P({ action: 'orthBoard', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
   must(tb.ok && tb.board.school.week.top[0].n[0][0] === '나나나' && tb.board.school.week.of === 2 && !tb.board.school.week.me && tb.board.all.week.of === 3, '선생님 순위표: ' + JSON.stringify(tb.board || tb.error));
   must(!P({ action: 'orthBoard', token: tg, school: '가고' }).ok, '학생 토큰으로 선생님 순위표가 열림');
-  must(P({ action: 'orthGhost', code: ORTH_GHOST_CODE }).ok && !P({ action: 'orthGhost', code: 'x' }).ok, '졸업생 코드');
+  must(P({ action: 'orthGhost', code: ORTH_GHOST_CODE }).ok && !P({ action: 'orthGhost', code: 'x' }).ok, '졸업생 코드(맨 위 ORTH_GHOST_CODE를 정해 주세요)');
   var tl = P({ action: 'orthTeachLogin', pw: 'orth-check' });
   must(tl.ok && tl.token && tl.token.charAt(0) === 'a' && P({ action: 'orthBoard', token: tl.token, school: '가고' }).ok, '선생님 30일 토큰');
   must(!P({ action: 'orthTeachLogin', pw: 'nope' }).ok && !P({ action: 'orthBoard', token: 'a0000', school: '가고' }).ok, '선생님 토큰 검사');
