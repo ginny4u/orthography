@@ -130,6 +130,7 @@ function orthRank_(people, key, meId, withSchool) {
   }
   return out;
 }
+function orthSchoolKey_(s) { return String(s || '').replace(/\s+/g, '').replace(/(여자고등학교|고등학교|여고|고)$/, ''); }
 function orthBoard_(me, store, env, myRow) {
   var week = orthWeek(env.now());
   var active = {};
@@ -145,7 +146,8 @@ function orthBoard_(me, store, env, myRow) {
     var r = best[id], s = active[id];
     return { id: id, n: s.name, s: s.school, w: r.week === week ? Number(r.weekN) || 0 : 0, t: Number(r.total) || 0 };
   });
-  var mates = people.filter(function (p) { return p.s === me.school; });
+  // 학교 이름은 트래커 표기('동양')와 화면 표기('동양고')가 다를 수 있어 '고·여고·고등학교'를 떼고 비교
+  var mates = people.filter(function (p) { return orthSchoolKey_(p.s) === orthSchoolKey_(me.school); });
   // 학교 대항: 학교마다 재원생 수(n), 맞힌 사람 수(p), 맞힌 문제 합(d). 화면에서 1인당 평균으로 줄 세움
   var sch = {};
   Object.keys(active).forEach(function (id) {
