@@ -1039,14 +1039,16 @@ function answerSwipe(q, yes){
   if(sess.unkey){ sess.unkey(); sess.unkey=null; }
   // 틀린 표기를 보고 '틀림'으로 맞게 넘긴 경우에도 교정 표시(취소선+빨간 글씨)가 뜨는데, 오답 표시로 오해하기 쉬워 한 줄 덧붙인다
   // 맞혔으면 문장은 바른 표기로 깔끔하게 보여 주고, 틀린 표기를 보고 맞힌 경우엔 아래에 '틀린 → 바른'만 작게 붙인다
-  const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, ok?'ok':'fix', it.x)+'</p>'+
+  // 틀렸을 때: 틀린 표기를 보고 '맞음'이라 했으면 교정(취소선→바른 표기), 맞는 표기를 보고 '틀림'이라 했으면 그 표기가 맞았다고 보여 줌
+  const sw=document.getElementById('sw'); if(sw) sw.innerHTML='<div class="swc still"><p class="qsent" style="margin:0">'+sentFilled(it, (ok||q.show)?'ok':'fix', it.x)+'</p>'+
+
     '<img class="stampbig" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'"></div>';
   const hint=app.querySelector('.swhint span:nth-child(2)'); if(hint) hint.textContent='';
   // 부연 설명은 카드 밑(fb)에: 틀린 표기를 보고 맞힌 경우 '틀린 → 바른', 사이시옷이면 한자 짜임
   if(ok){ const fb=document.getElementById('fb'); if(fb) fb.innerHTML=(!q.show?'<p class="cap"><s>'+esc(it.x)+'</s><i>→</i><b>'+esc(it.o)+'</b></p>':'')+(it.a===30?hanjaHTML(it.o):''); }
   // 맞혔으면 자동으로 다음. 틀린 표기를 보고 맞힌 경우엔 교정된 표기를 볼 시간을 더 줌
   if(ok){ record(q, true); sess.res.push({q, ok:true}); const S=sess; S.timer=setTimeout(()=>{ S.timer=null; if(sess===S && view==='q' && S.qs[S.i]===q){ S.i++; S.i<S.qs.length ? renderQ() : renderResult(); } }, q.show?700:1500); return; }
-  afterAnswer(ok, q, whyLine(it), true);
+  afterAnswer(ok, q, (q.show ? '<p class="cap" style="margin:0 0 6px">이 표기가 맞는 거였어요. 틀린 표기는 <s>'+esc(it.x)+'</s></p>' : '')+whyLine(it), true);
   if(!ok) sess.res[sess.res.length-1].chosen = q.show ? it.o : it.x;
 }
 
@@ -1060,7 +1062,7 @@ function renderResult(){
       const it=r.q.it;
       const loc = it.l ? ' · '+it.l : '';
       if(r.q.kind==='spot') return '<li>'+(spotWhy(it, r.q.bad, r.oops)||'<div class="w2">틀린 곳이 없는 대화였는데 고른 것이 있었어요.</div>')+'</li>';
-      if(r.q.kind==='swipe') return '<li><div class="w1">'+sentFilled(it,'fix',it.x)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
+      if(r.q.kind==='swipe') return '<li><div class="w1">'+(r.q.show ? sentFilled(it,'ok')+'<span class="was">맞는 표기였는데 틀림으로 넘김</span>' : sentFilled(it,'fix',it.x))+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
       return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
     }).join('')+'</ul>';
   }
