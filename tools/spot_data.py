@@ -142,7 +142,8 @@ for it in ITEMS:
     out.append({'t': bubbles, 'arts': sorted(arts)})
 
 if __name__ == '__main__':
-    js = '// tools/spot_data.py로 만든 파일. 직접 고치지 말 것.\nwindow.ORTH_SPOT = ' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n'
+    import pack as _pack
+    js = _pack.emit('ORTH_SPOT', out, 'tools/spot_data.py로 만든 파일. 직접 고치지 말 것.')
     open(sys.argv[1], 'w', encoding='utf-8').write(js)
     n = sum(1 for it in out for b in it['t'] for p in b[1] if isinstance(p, dict) and 'o' in p)
     print('items', len(out), 'errors', n)

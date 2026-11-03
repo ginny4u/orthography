@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<!-- © 배진희(진희T). 이 사이트의 문항·해설·화면은 저작권자의 허락 없이 복제·배포·개작할 수 없습니다. -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>맞춤법 교정실</title>
 <meta name="description" content="고1 한글 맞춤법 반복 연습 — 조항 카드, 바른 표기, 쓱쓱 넘기기, 틀린 곳 찾기">
@@ -276,8 +277,16 @@ footer{margin-top:48px;padding-top:12px;border-top:1px solid var(--rule);font-si
     </nav>
   </header>
   <main id="app"></main>
-  <footer>조항 원문과 예시는 국립국어원 ‘한글 맞춤법’ 기준입니다.</footer>
+  <footer>조항 원문과 예시는 국립국어원 ‘한글 맞춤법’ 기준입니다.<br>© 배진희(진희T) · 문항과 해설의 무단 복제·배포를 금합니다.</footer>
 </div>
+<script>
+/* 데이터 파일(data.js·school.js·spot.js)은 tools/pack.py로 싸여 있다. 여기서 풀어서 쓴다. */
+function ORTH_UNPACK(b64){
+  const k=new TextEncoder().encode('orth-2026-jinhee'), bin=atob(b64), out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i)^k[i%k.length]^((i*7)&255);
+  return JSON.parse(new TextDecoder().decode(out));
+}
+</script>
 <script src="data.js"></script>
 <script src="school.js"></script>
 <script src="spot.js"></script>

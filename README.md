@@ -1,10 +1,13 @@
 # 맞춤법 교정실
 
+© 배진희(진희T). 문항·해설·화면의 무단 복제·배포·개작을 금합니다.
+
 고1 한글 맞춤법 반복 연습 사이트. 주소: https://ginny4u.github.io/orthography/
 
 ## 파일
 - `index.html` — 화면 전체(로그인 · 연습 · 조항 · 오답 · 순위표)
-- `data.js` — 기본 개념 데이터(조항 카드 47개, 바른 표기 문제, 조항 빈칸). `tools/orth_data.py`로 만든다.
+- `data.js` — 기본 개념 데이터(조항 카드 47개, 바른 표기 문제). `tools/orth_data.py`로 만든다.
+- 데이터 파일 셋(data.js·school.js·spot.js)은 `tools/pack.py`로 싸여 있어 열어 봐도 바로 읽히지 않는다(복제 방지). 원본은 tools/*.py, 푸는 코드는 index.html의 `ORTH_UNPACK`.
 - `tools/orth_data.py` — 조항 원문·예시·문제 원본. 고친 뒤 `python3 tools/orth_data.py data.js`
 - `school.js` — 학교별 시험 범위(교과서·프린트·올림포스). `tools/school_data.py`로 만든다.
 - `tools/school_data.py` — 학교 자료에서 뽑은 문제와 자료별 조항 목록. 고친 뒤 `python3 tools/school_data.py school.js`
