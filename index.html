@@ -301,7 +301,7 @@ if(!D){ app.innerHTML='<p class="empty">문제 파일을 불러오지 못했습�
 const API = 'https://script.google.com/macros/s/AKfycbxN_zUg62UVzI-xkiB_-CxSnZND29jsOmX6yDW-QLcFYvlQlh3QnpAGBCkDG11Zqik-_A/exec';
 
 /* ---------- 기본 데이터 */
-const SCHOOLS = ['공항고','동양고','명덕고','한서고','경복여고'];
+const SCHOOLS = ['경복여고','공항고','동양고','명덕고','한서고'];   // 가나다순
 // 트래커는 학교를 '동양'처럼 짧게 적어 두므로, 서버에서 온 학교 이름과 비교할 땐 '고·여고'를 떼고 본다
 const schoolKey = s => String(s||'').replace(/\s+/g,'').replace(/(여자고등학교|고등학교|여고|고)$/,'');
 const sameSchool = (a,b) => schoolKey(a)===schoolKey(b);
