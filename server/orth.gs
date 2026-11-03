@@ -19,7 +19,7 @@ var ORTH_MASK_NAME = false;
 var ORTH_TOP = 5;            // 순위표에 보여 줄 등수 줄 수(같은 등수는 한 줄)
 var ORTH_NAMES = 8;          // 한 줄에 보여 줄 이름 수(넘으면 '외 n명')
 var ORTH_TOKEN_DAYS = 30;    // 사이트 로그인 유지 기간(일)
-var ORTH_GHOST_CODE = '0707'; // 👻 졸업생 입장 코드(기본 개념만, 기록·순위 없음). 바꾸려면 여기만 고치면 됨
+var ORTH_GHOST_CODE = '여기에 코드'; // 👻 졸업생 입장 코드(기본 개념만, 기록·순위 없음). 실제 값은 Apps Script에만 넣고 저장소에는 올리지 않는다
 var ORTH_DAY_CAP = 1000;     // 하루에 셀 수 있는 최대 정답 수(장난 방지)
 var ORTH_ID = /^[a-z][0-9a-z]{1,23}$/;   // 문제 번호 모양
 var ORTH_COLS = ['studentId', 'school', 'name', 'total', 'week', 'weekN', 'day', 'dayN', 'solved', 'updatedAt', 'dayIds', 'cids', 'wrong', 'st'];
@@ -189,7 +189,7 @@ if (typeof CORE_ACTIONS !== 'undefined') {
   };
   // 👻 졸업생 입장: 코드만 확인(계정·기록 없음)
   CORE_ACTIONS.orthGhost = function (req, store, env) {
-    if (String(req.code || '') !== ORTH_GHOST_CODE) throw userErr('코드가 맞지 않아요.');
+    if (/^여기에/.test(String(ORTH_GHOST_CODE)) || String(req.code || '') !== ORTH_GHOST_CODE) throw userErr('코드가 맞지 않아요.');   // 코드를 안 정했으면 아무도 못 들어옴
     return { ok: true };
   };
   CORE_ACTIONS.orthLogin = function (req, store, env) {
