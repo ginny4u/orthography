@@ -143,6 +143,7 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .swc.still{flex-direction:column}
 .cap{text-align:center;margin:14px 0 0;font-size:16px;color:var(--muted)}
 .gain{margin:4px 0 0;font-size:14px;color:var(--muted)}.gain b{color:var(--accent)}
+.prog{margin-top:12px}.prog b{color:var(--ink)}
 .cap s{text-decoration-color:var(--muted)}.cap i{font-style:normal;margin:0 8px}.cap b{color:var(--accent);font-weight:700}
 .stamp{position:absolute;top:14px;padding:4px 10px;border:2px solid;border-radius:8px;font-size:14px;font-weight:700;line-height:normal;opacity:0;pointer-events:none}
 .stamp.ok{right:14px;color:var(--accent);border-color:var(--accent);transform:rotate(12deg)}
@@ -838,9 +839,14 @@ function renderHome(){
       : '<button type="button" class="chip" disabled>'+esc(x.label)+' 준비 중</button>').join('')+'</div>';
   const sub = sel.includes('base') ? '<div class="subscope"><div class="lab">기본 개념에서 풀 부분</div>'+chips(RANGES, store.rng, 'rng', true)+'</div>' : '';
   const srcs = sel.filter(id=>id!=='base').map(id=>'<li><b>'+SLOT_LABEL[id]+'</b>'+esc(schSrc(store.school, id).title)+'</li>').join('');
-  const summary = '범위: '+sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · 한 번에 '+(cur==='swipe'?SWIPE_N+'장':store.n+'문제');
+  // 이 범위에서 몇 문제 중 몇 개를 맞혀 봤는지(유형별로 따로 셈). 같은 게 자꾸 나온다는 항의를 줄이려고 보여 준다
+  const prog = (()=>{ const t = cur||'pick', pool = homePool(t), done = pool.filter(q=>(store.st[q.id]||{}).c>0).length;
+    return {t, n:pool.length, done}; })();
+  const progLine = '<p class="note prog">이 범위의 '+((TYPES.find(x=>x.id===prog.t)||{}).label||'')+' <b>'+prog.n+'문제</b> 중 맞혀 본 문제 <b>'+prog.done+'개</b>'+(prog.n ? ' ('+Math.round(prog.done/prog.n*100)+'%)' : '')+
+    (prog.n && prog.done>=prog.n ? ' · 다 풀었어요. 범위를 넓히거나 다른 유형을 골라 보세요.' : '')+'</p>';
+  const summary = '범위: '+sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · 한 번에 '+(cur==='swipe'?SWIPE_N+'장':store.n+'문제')+' · '+prog.done+'/'+prog.n;
   const settings = !store.open ? '' : '<div class="settings">'+
-    '<h2 class="sec" style="margin-top:12px">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+
+    '<h2 class="sec" style="margin-top:12px">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+progLine+
     '<h2 class="sec">한 번에 풀 문제</h2>'+(cur==='swipe' ? '<p class="note" style="margin-top:0">쓱쓱 넘기기는 항상 '+SWIPE_N+'장씩 넘겨요.</p>' : chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false))+
     '<p class="note">틀린 문제와 안 푼 문제가 먼저 나옵니다.</p></div>';
   app.innerHTML =
