@@ -142,6 +142,7 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .swc .qsent{text-align:center}
 .swc.still{flex-direction:column}
 .cap{text-align:center;margin:14px 0 0;font-size:16px;color:var(--muted)}
+.gain{margin:4px 0 0;font-size:14px;color:var(--muted)}.gain b{color:var(--accent)}
 .cap s{text-decoration-color:var(--muted)}.cap i{font-style:normal;margin:0 8px}.cap b{color:var(--accent);font-weight:700}
 .stamp{position:absolute;top:14px;padding:4px 10px;border:2px solid;border-radius:8px;font-size:14px;font-weight:700;line-height:normal;opacity:0;pointer-events:none}
 .stamp.ok{right:14px;color:var(--accent);border-color:var(--accent);transform:rotate(12deg)}
@@ -898,7 +899,7 @@ function record(q, ok){
   const s = store.st[q.id] || (store.st[q.id]={c:0,w:0});
   if(ok){ s.c++; delete store.wrong[q.id];
     if(store.day!==today()){ store.day=today(); store.dayIds=[]; }
-    if(!store.dayIds.includes(q.id)){ store.dayIds.push(q.id); store.total++; }
+    if(!store.dayIds.includes(q.id)){ store.dayIds.push(q.id); store.total++; if(sess) sess.gained=(sess.gained||0)+1; }
     bumpStreak();
   } else { s.w++; store.wrong[q.id]=1; }
   if(auth) store.pending.push([q.id, ok?1:0]);
@@ -1074,7 +1075,10 @@ function renderResult(){
   }
   const kb = c===n ? '전부 맞혔어요. 이 기세로 한 번 더?' : wrong.length<=2 ? '거의 다 맞혔어요. 틀린 것만 다시 볼까요?' : '틀린 문제는 오답 노트에 들어갔어요. 다시 맞히면 빠집니다.';
   const stamp = c===n && n>=5 ? '<img class="stampimg" src="stamp.webp" alt="참 잘했어요">' : '';
-  app.innerHTML=hero(kb)+'<div class="scorebox"><div class="qkind">결과</div><p class="score">'+c+' <span>/ '+n+'</span></p>'+stamp+'</div>'+list+
+  // 누적 점수는 같은 문제를 하루에 한 번만 세므로, 왜 안 오르는지 보이게 알려 준다
+  const gained = sess.gained||0, rep = c - gained;
+  const gainLine = (ghost || !c) ? '' : '<p class="gain">누적 <b>+'+gained+'</b>'+(rep>0 ? ' · 오늘 이미 센 문제 '+rep+'개는 더 안 올라요' : '')+'</p>';
+  app.innerHTML=hero(kb)+'<div class="scorebox"><div class="qkind">결과</div><p class="score">'+c+' <span>/ '+n+'</span></p>'+gainLine+stamp+'</div>'+list+
     '<div class="row">'+(wrong.length?'<button type="button" class="btn primary" id="rw">틀린 문제만 다시</button>':'')+
     '<button type="button" class="btn" id="again">한 번 더</button><button type="button" class="btn" id="home2">처음으로</button></div>';
   const rw=document.getElementById('rw'); if(rw) rw.onclick=()=>startSession(shuffle(wrong.map(r=>({kind:r.q.kind,it:r.q.it,id:r.q.id}))), sess.meta);
