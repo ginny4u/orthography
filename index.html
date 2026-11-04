@@ -788,7 +788,7 @@ function vsHTML(){
   return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'누적')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
     '<div class="v'+(sameSchool(r.s, store.school)?' me':'')+'"><span class="s">'+(i+1)+'위 '+esc(r.s)+'</span><span class="m"><i style="width:'+(r.avg/max*100)+'%"></i></span>'+
     '<span class="d">1인당 <b>'+(Math.round(r.avg*10)/10)+'개</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
-    '</div><p class="note">학교 전체가 맞힌 문제 수를 인원으로 나눈 값입니다. 학교 크기 차이를 줄이려고 인원은 '+VS_MIN+'~'+VS_MAX+'명 사이로 보고 계산해요.<br>안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
+    '</div><p class="note">학교 전체가 맞힌 문제 수를 인원으로 나눈 값입니다. 학교 인원 격차로 인한 불공정을 줄이려고 보정한 수치예요.<br>안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
 }
 function boardHTML(){
   const teach = !auth && guest && !!teachTok;
