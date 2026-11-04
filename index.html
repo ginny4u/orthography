@@ -718,7 +718,14 @@ function leaveTeach(){
 // 선생님 페이지 순위표: 고른 학교 기준으로 서버에서 받아 옴
 function loadTeachBoard(quiet){
   const sc=store.school; srvT = quiet && srvT.school===sc && srvT.board ? srvT : {school:sc, board:null, state:'loading'};
-  api('orthBoard', {token:teachTok, school:schoolKey(sc)}).then(r=>{   // 트래커 표기('동양')로 보냄
+  // 서버는 학교 이름을 글자 그대로 비교한다(옛 orth.gs). 트래커 표기가 '명덕'인지 '명덕고'인지 학교마다 다를 수 있어서,
+  // 먼저 짧은 표기로 묻고 비어 있으면 학교대항전 줄(sch)에 적힌 그 학교의 실제 표기로 한 번 더 묻는다.
+  const ask = name => api('orthBoard', {token:teachTok, school:name});
+  ask(schoolKey(sc)).then(r=>{
+    if(!r.ok || (r.board.school||[]).length) return r;
+    const raw = (r.board.sch||[]).map(x=>x.s).find(x=>sameSchool(x, sc) && x!==schoolKey(sc));
+    return raw ? ask(raw) : r;
+  }).then(r=>{
     if(srvT.school!==sc) return;
     if(r.ok){ srvT.board=r.board; srvT.state='ok'; srvT.at=Date.now(); }
     else if(/선생님 로그인이 필요/.test(r.error||'')) srvT.state='expired';
