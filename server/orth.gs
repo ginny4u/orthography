@@ -276,6 +276,26 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     orthRequireAdmin_(req, store, env);
     return { ok: true, board: orthBoard_({ id: '', school: String(req.school || '') }, store, env, null) };
   };
+  // 선생님 페이지 '오답 프린트': 한 학교 재원생의 오답 노트(wrong)와 문제별 기록(st)을 내려줌
+  CORE_ACTIONS.orthWrongs = function (req, store, env) {
+    orthRequireAdmin_(req, store, env);
+    var key = orthSchoolKey_(req.school);
+    var active = {};
+    store.students().forEach(function (s) { if (s.status === 'active' && orthSchoolKey_(s.school) === key) active[s.id] = s; });
+    var best = {};
+    store.orthRowsFull().forEach(function (r) {
+      if (!active[r.studentId]) return;
+      var b = best[r.studentId];
+      if (!b || r.total > b.total) best[r.studentId] = r;
+    });
+    var list = Object.keys(active).map(function (id) {
+      var r = best[id] || orthBlank_({ id: id, school: active[id].school, name: active[id].name });
+      var st = {};
+      Object.keys(r.st || {}).forEach(function (k) { if (r.st[k][1] > 0) st[k] = r.st[k]; });   // 한 번이라도 틀린 것만
+      return { id: id, n: active[id].name, total: Number(r.total) || 0, wrong: r.wrong || [], st: st };
+    }).sort(function (a, b) { return a.n < b.n ? -1 : a.n > b.n ? 1 : 0; });
+    return { ok: true, list: list };
+  };
   CORE_ACTIONS.orthLogout = function (req, store, env) {
     var t = String(req.token || '');
     if (t && (t.charAt(0) === 'o' || t.charAt(0) === 'a') && env.propDel) env.propDel('ot:' + t);
@@ -325,6 +345,13 @@ function orthSheetRows_() {
   return sh.getRange(2, 1, last - 1, ORTH_LIGHT).getValues()
     .filter(function (r) { return String(r[0]) !== ''; }).map(orthParse_);
 }
+// 오답 프린트용: 모든 칸을 다 읽음(학교 하나 분량이라 한 번에 읽어도 됨)
+function orthSheetRowsFull_() {
+  var sh = orthSheet_(), last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, ORTH_COLS.length).getValues()
+    .filter(function (r) { return String(r[0]) !== ''; }).map(orthParse_);
+}
 function orthSheetGet_(id) {
   var sh = orthSheet_(), last = sh.getLastRow();
   if (last < 2) return null;
@@ -347,7 +374,7 @@ if (typeof makeStore_ === 'function' && !makeStore_.orthWrapped) {
   var orthBaseStore_ = makeStore_;
   makeStore_ = function () {
     var s = orthBaseStore_();
-    if (!s.orthRows) { s.orthRows = orthSheetRows_; s.orthGet = orthSheetGet_; s.orthPut = orthSheetPut_; }
+    if (!s.orthRows) { s.orthRows = orthSheetRows_; s.orthRowsFull = orthSheetRowsFull_; s.orthGet = orthSheetGet_; s.orthPut = orthSheetPut_; }
     return s;
   };
   makeStore_.orthWrapped = true;
@@ -376,7 +403,7 @@ function orthCheck() {
   function log() { Logger.log(out.join('\n') + '\n\n' + (bad ? '문제 ' + bad + '개 — 이 로그를 그대로 복사해서 Claude에게 보내 주세요.' : '모두 정상입니다. 이제 배포 → 배포 관리 → 새 버전으로 배포하면 됩니다.')); }
 
   if (typeof CORE_ACTIONS === 'undefined' || typeof coreHandle !== 'function') { ng('Code.gs의 공통 로직을 찾지 못했습니다. orth 파일이 Code.gs보다 아래에 있는지 확인해 주세요.'); return log(); }
-  var need = ['orthLookup', 'orthGhost', 'orthTeachLogin', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
+  var need = ['orthLookup', 'orthGhost', 'orthTeachLogin', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthWrongs', 'orthLogout'];
   var miss = need.filter(function (a) { return typeof CORE_ACTIONS[a] !== 'function'; });
   if (miss.length) ng('맞춤법 요청이 없습니다: ' + miss.join(', ')); else ok('맞춤법 요청 ' + need.length + '개 추가됨');
   if (typeof CORE_VERSION !== 'undefined') ok('트래커 버전 그대로 (version ' + CORE_VERSION + ')');
@@ -417,6 +444,7 @@ function orthSelfTest_() {
     checks: function () { return dc(db.checks); }, putCheck: function (c) { up(db.checks, c, function (r) { return r.setId === c.setId && r.studentId === c.studentId; }); },
     deleteSub: function (a, b) { db.subs = db.subs.filter(function (r) { return !(r.setId === a && r.studentId === b); }); },
     orthRows: function () { return db.orth.map(function (r) { var o = {}; ORTH_COLS.slice(0, ORTH_LIGHT).forEach(function (c) { o[c] = r[c]; }); return dc(o); }); },
+    orthRowsFull: function () { return dc(db.orth); },
     orthGet: function (id) { var r = db.orth.filter(function (x) { return x.studentId === id; })[0]; return r ? dc(r) : null; },
     orthPut: function (o) { up(db.orth, o, function (r) { return r.studentId === o.studentId; }); }
   };
@@ -487,6 +515,9 @@ function orthSelfTest_() {
   var tb = P({ action: 'orthBoard', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
   must(tb.ok && tb.board.school.week.top[0].n[0][0] === '나나나' && tb.board.school.week.of === 2 && !tb.board.school.week.me && tb.board.all.week.of === 3, '선생님 순위표: ' + JSON.stringify(tb.board || tb.error));
   must(!P({ action: 'orthBoard', token: tg, school: '가고' }).ok, '학생 토큰으로 선생님 순위표가 열림');
+  var tw = P({ action: 'orthWrongs', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
+  must(tw.ok && tw.list.length === 3 && tw.list.some(function (x) { return x.st.pa3 && x.st.pa3[1] === 1; }), '오답 프린트 자료: ' + JSON.stringify(tw));
+  must(!P({ action: 'orthWrongs', token: tg, school: '가고' }).ok, '학생 토큰으로 오답 자료가 열림');
   must(P({ action: 'orthGhost', code: ORTH_GHOST_CODE }).ok && !P({ action: 'orthGhost', code: 'x' }).ok, '졸업생 코드(맨 위 ORTH_GHOST_CODE를 정해 주세요)');
   var tl = P({ action: 'orthTeachLogin', pw: 'orth-check' });
   must(tl.ok && tl.token && tl.token.charAt(0) === 'a' && P({ action: 'orthBoard', token: tl.token, school: '가고' }).ok, '선생님 30일 토큰');

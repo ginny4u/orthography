@@ -142,6 +142,7 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .swc .qsent{text-align:center}
 .swc.still{flex-direction:column}
 .cap{text-align:center;margin:14px 0 0;font-size:16px;color:var(--muted)}
+.wstu{list-style:none;padding:0;margin:4px 0 0;columns:2;column-gap:16px}.wstu li{break-inside:avoid;padding:5px 0;font-size:15px}.wstu input{margin-right:6px}
 .cap s{text-decoration-color:var(--muted)}.cap i{font-style:normal;margin:0 8px}.cap b{color:var(--accent);font-weight:700}
 .stamp{position:absolute;top:14px;padding:4px 10px;border:2px solid;border-radius:8px;font-size:14px;font-weight:700;line-height:normal;opacity:0;pointer-events:none}
 .stamp.ok{right:14px;color:var(--accent);border-color:var(--accent);transform:rotate(12deg)}
@@ -695,6 +696,100 @@ function chips(list, sel, attr, multi){
     return '<button type="button" class="chip" data-'+attr+'="'+esc(id)+'" aria-pressed="'+on+'">'+esc(lab)+'</button>';
   }).join('')+'</div>';
 }
+/* ---------- 선생님: 학생별 오답 프린트 ----------
+ * 서버(orthWrongs)에서 학교 재원생의 오답 노트(wrong)·문제별 기록(st)을 받아, 학생마다 A4 한 장씩 문제지를 만든다.
+ * 틀린 곳 찾기 대화는 틀린 자리마다 한 문항으로 풀어서 넣는다. */
+let wp = {list:null, state:'', school:'', sel:{}, range:'now', fmt:'fix', key:true};
+function wrongItems(stu){
+  // 학생 한 명의 출력 문항: [{s(문장), o, x, a, w, l}]
+  const ids = wp.range==='now' ? stu.wrong : Object.keys(stu.st||{});
+  const out=[], seen={};
+  ids.forEach(id=>{
+    const it=BYID[id]; if(!it) return;
+    if(id[0]==='s'){   // 틀린 곳 찾기: 자리마다 한 문항
+      it.t.forEach(b=>{ const parts=b[1];
+        parts.forEach((p,k)=>{ if(typeof p==='string') return;
+          const sent=parts.map((q,j)=>typeof q==='string'?q:(j===k?'□':q.o)).join('');
+          const key='s|'+sent+'|'+p.o; if(seen[key]) return; seen[key]=1;
+          out.push({s:sent, o:p.o, x:p.x, a:p.a, w:p.w||''}); }); });
+      return;
+    }
+    const key='p|'+it.s+'|'+it.o; if(seen[key]) return; seen[key]=1;
+    out.push({s:it.s, o:it.o, x:it.x, a:it.a, w:it.w||'', l:it.l||''});
+  });
+  return out;
+}
+function renderWrongPrint(){
+  view='wprint'; setTabs(false);
+  const sc=store.school;
+  if(wp.school!==sc || !wp.list){ wp={list:null, state:'loading', school:sc, sel:{}, range:wp.range, fmt:wp.fmt, key:wp.key};
+    api('orthWrongs', {token:teachTok, school:schoolKey(sc)}).then(r=>{
+      if(view!=='wprint') return;
+      if(r.ok){ wp.list=r.list; wp.state='ok'; r.list.forEach(x=>{ if(wrongItems(x).length) wp.sel[x.id]=1; }); }
+      else wp.state = authErr(r)||/선생님 로그인/.test(r.error||'') ? 'expired' : (noServer(r) ? 'noserver' : 'neterr');
+      renderWrongPrint();
+    });
+  }
+  let body;
+  if(wp.state==='loading') body='<p class="note">학생 기록을 불러오는 중…</p>';
+  else if(wp.state==='noserver') body='<p class="note">서버의 orth.gs가 예전 버전이라 오답 자료를 내려줄 수 없어요. 최신 orth.gs로 교체해 주세요.</p>';
+  else if(wp.state==='expired') body='<p class="note">선생님 로그인이 만료되었습니다. 다시 들어가 주세요.</p>';
+  else if(wp.state==='neterr') body='<p class="note">불러오지 못했습니다. <button type="button" class="linkbtn" id="wretry">다시 시도</button></p>';
+  else {
+    const rows=wp.list.map(x=>{ const n=wrongItems(x).length; return {x, n}; });
+    const any=rows.some(r=>r.n);
+    body='<h2 class="sec">문항 범위</h2>'+chips([{id:'now', label:'지금 오답 노트에 있는 것'}, {id:'ever', label:'한 번이라도 틀린 것'}], wp.range, 'wrange', false)+
+      '<h2 class="sec">문제지 형식</h2>'+chips([{id:'fix', label:'틀린 표기 고쳐 쓰기'}, {id:'pick', label:'둘 중 고르기'}], wp.fmt, 'wfmt', false)+
+      '<p class="note" style="margin-top:8px"><label><input type="checkbox" id="wkey"'+(wp.key?' checked':'')+'> 맨 뒤에 정답지 붙이기</label></p>'+
+      '<h2 class="sec">학생 <span class="note" style="font-weight:400">· 문항 수</span> <button type="button" class="linkbtn" id="wall" style="margin-left:8px">모두 선택</button> <button type="button" class="linkbtn" id="wnone">모두 해제</button></h2>'+
+      '<ul class="wstu">'+rows.map(r=>'<li><label><input type="checkbox" data-sid="'+esc0(r.x.id)+'"'+(wp.sel[r.x.id]?' checked':'')+(r.n?'':' disabled')+'> '+esc(r.x.n)+' <span class="note">'+(r.n?r.n+'문항':'오답 없음')+'</span></label></li>').join('')+'</ul>'+
+      (any ? '<button type="button" class="btn primary wide" id="wgo" style="margin-top:16px">인쇄 화면 열기</button><p class="note">학생마다 한 장씩 나뉘어요. 인쇄 창에서 PDF로 저장도 됩니다.</p>'+
+        '<p class="note"><button type="button" class="linkbtn" id="wjson">자료 내려받기(.json)</button> · 클리닉 틀(HWPX)에 채워 넣을 때 쓰는 원자료</p>' : '<p class="note">아직 틀린 기록이 있는 학생이 없어요.</p>');
+  }
+  app.innerHTML = hero(esc(sc)+' 학생별 오답 프린트')+'<div class="card">'+body+'</div>'+
+    '<p class="note" style="text-align:center;margin-top:18px"><button type="button" class="linkbtn" id="wback">학생 화면으로</button></p>';
+  document.getElementById('wback').onclick=()=>go('practice');
+  const rt=document.getElementById('wretry'); if(rt) rt.onclick=()=>{ wp.list=null; renderWrongPrint(); };
+  app.querySelectorAll('[data-wrange]').forEach(b=>b.onclick=()=>{ wp.range=b.dataset.wrange; wp.sel={}; wp.list.forEach(x=>{ if(wrongItems(x).length) wp.sel[x.id]=1; }); renderWrongPrint(); });
+  app.querySelectorAll('[data-wfmt]').forEach(b=>b.onclick=()=>{ wp.fmt=b.dataset.wfmt; renderWrongPrint(); });
+  const wk=document.getElementById('wkey'); if(wk) wk.onchange=()=>{ wp.key=wk.checked; };
+  app.querySelectorAll('[data-sid]').forEach(c=>c.onchange=()=>{ if(c.checked) wp.sel[c.dataset.sid]=1; else delete wp.sel[c.dataset.sid]; });
+  const wa=document.getElementById('wall'); if(wa) wa.onclick=()=>{ wp.list.forEach(x=>{ if(wrongItems(x).length) wp.sel[x.id]=1; }); renderWrongPrint(); };
+  const wn=document.getElementById('wnone'); if(wn) wn.onclick=()=>{ wp.sel={}; renderWrongPrint(); };
+  const wg=document.getElementById('wgo'); if(wg) wg.onclick=openWrongPrint;
+  const wj=document.getElementById('wjson'); if(wj) wj.onclick=()=>{
+    const data={school:store.school, date:today(), range:wp.range, students: wp.list.filter(x=>wp.sel[x.id]).map(x=>({id:x.id, name:x.n, items:wrongItems(x)})).filter(r=>r.items.length)};
+    const blob=new Blob([JSON.stringify(data, null, 1)], {type:'application/json'}); const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='오답_'+store.school+'_'+today()+'.json'; document.body.appendChild(a); a.click(); a.remove();
+  };
+}
+function openWrongPrint(){
+  const stus=wp.list.filter(x=>wp.sel[x.id]).map(x=>({x, items:wrongItems(x)})).filter(r=>r.items.length);
+  if(!stus.length) return;
+  const d=new Date(), date=d.getFullYear()+'. '+(d.getMonth()+1)+'. '+d.getDate()+'.';
+  const line = (it,i)=>{
+    const sent = wp.fmt==='pick'
+      ? esc(it.s).replace('□', '( '+(h(it.s)%2 ? esc(it.o)+' / '+esc(it.x) : esc(it.x)+' / '+esc(it.o))+' )')
+      : esc(it.s).replace('□', '<u>'+esc(it.x)+'</u>');
+    return '<li><span class="n">'+(i+1)+'</span><span class="t">'+sent+'</span>'+(wp.fmt==='pick'?'':'<span class="ans">&nbsp;</span>')+'</li>';
+  };
+  const sheets = stus.map(r=>'<section class="sheet"><header><h1>맞춤법 오답 다시 보기</h1><div class="meta">'+esc(store.school)+' · <b>'+esc(r.x.n)+'</b> · '+date+' · '+r.items.length+'문항</div>'+
+      '<p class="how">'+(wp.fmt==='pick'?'괄호 안에서 바른 표기에 ○표 하세요.':'밑줄 친 표기를 바르게 고쳐 오른쪽 칸에 쓰세요.')+'</p></header><ol>'+r.items.map(line).join('')+'</ol></section>').join('');
+  const keys = wp.key ? stus.map(r=>'<section class="sheet key"><header><h1>정답 · '+esc(r.x.n)+'</h1></header><ol>'+r.items.map((it,i)=>'<li><span class="n">'+(i+1)+'</span><span class="t"><s>'+esc(it.x)+'</s> → <b>'+esc(it.o)+'</b> <small>제'+it.a+'항'+(it.w?' · '+esc(it.w):'')+'</small></span></li>').join('')+'</ol></section>').join('') : '';
+  const html='<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>오답 프린트 · '+esc(store.school)+'</title><style>'+
+    '@page{size:A4;margin:16mm 14mm}body{font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#111;margin:0}'+
+    '.sheet{page-break-after:always;padding:24px 28px}.sheet:last-child{page-break-after:auto}'+
+    'header{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:14px}h1{font-size:20px;margin:0 0 4px}.meta{font-size:13px;color:#444}.how{font-size:13px;margin:6px 0 0;color:#444}'+
+    'ol{list-style:none;padding:0;margin:0}li{display:flex;align-items:baseline;gap:10px;padding:9px 0;border-bottom:1px solid #ddd;font-size:15px;line-height:1.6}'+
+    '.n{flex:0 0 24px;color:#666;font-size:13px}.t{flex:1}u{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}'+
+    '.ans{flex:0 0 120px;border-bottom:1.5px solid #111;height:22px}.key li{font-size:14px;padding:6px 0}.key small{color:#666;margin-left:6px}.key s{color:#888}'+
+    '.bar{position:fixed;top:0;left:0;right:0;background:#fff;border-bottom:1px solid #ddd;padding:10px 16px;font-size:14px;font-family:inherit}.bar button{font:inherit;padding:6px 14px;margin-right:8px}'+
+    '@media print{.bar{display:none}}@media screen{body{padding-top:48px;background:#eee}.sheet{background:#fff;max-width:760px;margin:16px auto;box-shadow:0 1px 4px rgba(0,0,0,.15)}}'+
+    '</style></head><body><div class="bar"><button onclick="print()">인쇄 / PDF 저장</button><button onclick="close()">닫기</button>'+stus.length+'명 · 학생마다 한 장</div>'+sheets+keys+'</body></html>';
+  const w=window.open('', '_blank');
+  if(!w){ alert('팝업이 막혔어요. 이 사이트의 팝업을 허용해 주세요.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
 function renderPick(){
   view='pick'; setTabs(false);
   app.innerHTML =
@@ -817,6 +912,7 @@ function renderHome(){
     ? '<p class="who"><b>'+esc(auth.me.name)+'</b> · '+esc(store.school)+(sk>1?' · <span class="streak">'+sk+'일 연속</span>':'')+' · <button type="button" class="linkbtn" id="out">로그아웃</button></p>'
     : ghost ? '<p class="who"><b>👻</b>'+(sk>1?' · <span class="streak">'+sk+'일 연속</span>':'')+' · <button type="button" class="linkbtn" id="gout">나가기</button></p>'
     : '<p class="who"><span class="badge">선생님 페이지</span> <b>'+esc(store.school)+'</b> 학생 화면 · <button type="button" class="linkbtn" id="chs">학교 바꾸기</button>'+
+      (guest && teachTok && API ? ' · <button type="button" class="linkbtn" id="wprint">오답 프린트</button>' : '')+
       (guest && API ? ' · <button type="button" class="linkbtn" id="tout2">선생님 페이지 나가기</button>' : '')+'</p>';
   if(guest && teachTok && API && (srvT.school!==store.school || (!srvT.board && !srvT.state))) loadTeachBoard();
   // 1) 유형 카드(반드시 하나 고름) → 2) 시작 버튼 → 3) 범위·문제 수는 접어 둠
@@ -848,6 +944,7 @@ function renderHome(){
    '<div class="setline"><span>'+esc(summary)+'</span><button type="button" class="linkbtn" id="tog">'+(store.open?'닫기':'바꾸기')+'</button></div>'+settings+
    vsHTML()+'<h2 class="sec">'+(ghost?'내 기록':'순위표')+'</h2>'+boardHTML();
   const chs=document.getElementById('chs'); if(chs) chs.onclick=renderPick;
+  const wp=document.getElementById('wprint'); if(wp) wp.onclick=renderWrongPrint;
   const out=document.getElementById('out'); if(out) out.onclick=logout;
   const go2=document.getElementById('gout'); if(go2) go2.onclick=()=>{ ghost=false; lsSet('orth.ghost', null); sess=null; useStore(); resetL(); renderLogin('name'); };
   const t2=document.getElementById('tout2'); if(t2) t2.onclick=leaveTeach;
