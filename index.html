@@ -307,6 +307,8 @@ const SCHOOLS = ['경복여고','공항고','동양고','명덕고','한서고']
 // 트래커는 학교를 '동양'처럼 짧게 적어 두므로, 서버에서 온 학교 이름과 비교할 땐 '고·여고'를 떼고 본다
 const schoolKey = s => String(s||'').replace(/\s+/g,'').replace(/(여자고등학교|고등학교|여고|고)$/,'');
 const sameSchool = (a,b) => schoolKey(a)===schoolKey(b);
+// 트래커의 '경복'을 사이트 표기 '경복여고'로 맞춤(학교 자료 표는 사이트 표기로 되어 있음)
+const canonSchool = s => SCHOOLS.find(x=>schoolKey(x)===schoolKey(s)) || s;
 const GHOST = '👻';   // 졸업생 모드(기본 개념만, 기록은 폰에만)
 let ghost = false;
 const SS = window.ORTH_SCHOOL || {src:{}, map:{}};  // 학교별 교과서·프린트·올림포스 범위(school.js)
@@ -371,7 +373,7 @@ function useStore(){
   if(store.type==='basis'||store.type==='blank') store.type=null;
   if(!store.bs) store.bs={sc:'school', per:'week'};
   if(!store.sk) store.sk={last:'', n:0};
-  if(auth) store.school=auth.me.school;
+  if(auth) store.school=canonSchool(auth.me.school);
   else if(ghost) store.school=GHOST;
   else if(!SCHOOLS.includes(store.school)) store.school=null;
 }
@@ -380,7 +382,7 @@ function setAuth(token, me){
   const same = !!auth && auth.me.id===me.id;
   auth = {token, me:{id:me.id, name:me.name, school:me.school}, tt: same ? (auth.tt||'') : ''};
   lsSet(AKEY, JSON.stringify(auth));
-  if(same){ store.school=me.school; save(); } else useStore();
+  if(same){ store.school=canonSchool(me.school); save(); } else useStore();
 }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function todayCount(){ return store.day===today() ? store.dayIds.length : 0; }
