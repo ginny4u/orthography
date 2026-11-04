@@ -67,10 +67,11 @@ function orthTrim_(row) {
 // 트래커 로그인 토큰(6시간)과 사이트 전용 토큰(30일) 둘 다 받음
 function orthAuth_(req, store, env) {
   var tok = String(req.token || ''), id = null, via = 't', rec = null;
-  if (tok) id = env.cacheGet('t:' + tok);
+  var peek = false;
+  if (tok) { id = env.cacheGet('t:' + tok); if (id && env.cacheGet('p:' + tok)) peek = true; }   // p: 트래커의 '보기 전용'(선생님 비밀번호로 들어옴)
   if (!id && tok && env.propGet) {
     try { rec = JSON.parse(env.propGet('ot:' + tok) || 'null'); } catch (e) { rec = null; }
-    if (rec && rec.e > Date.parse(env.now())) { id = rec.i; via = 'o'; }
+    if (rec && rec.e > Date.parse(env.now())) { id = rec.i; via = 'o'; peek = !!rec.k; }
   }
   if (!id) throw userErr('로그인 시간이 지났습니다. 다시 로그인해 주세요.');
   var st = store.students().filter(function (s) { return s.id === id; })[0];
@@ -81,13 +82,15 @@ function orthAuth_(req, store, env) {
     var now = Date.parse(env.now());
     if (rec.e - now < ORTH_TOKEN_DAYS * 864e5 / 2) { rec.e = now + ORTH_TOKEN_DAYS * 864e5; env.propPut('ot:' + tok, JSON.stringify(rec)); }
   }
-  return { st: st, via: via };
+  return { st: st, via: via, peek: peek };
 }
-function orthIssue_(st, env) {
+function orthIssue_(st, env, peek) {
   if (!env.propPut) return '';
   var tok = 'o' + env.uuid().replace(/-/g, '');
   var now = Date.parse(env.now());
-  env.propPut('ot:' + tok, JSON.stringify({ i: st.id, e: now + ORTH_TOKEN_DAYS * 864e5, p: String(st.pwHash).slice(0, 12) }));
+  var rec = { i: st.id, e: now + ORTH_TOKEN_DAYS * 864e5, p: String(st.pwHash).slice(0, 12) };
+  if (peek) rec.k = 1;   // 보기 전용: 기록을 올릴 수 없음
+  env.propPut('ot:' + tok, JSON.stringify(rec));
   // 만료된 토큰 정리
   var all = env.propAll ? env.propAll() : {};
   Object.keys(all).forEach(function (k) {
@@ -196,7 +199,7 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     var r = CORE_ACTIONS.login(req, store, env);
     if (!r.ok || r.me.mustChange) return r;
     var st = store.students().filter(function (s) { return s.id === r.me.id; })[0];
-    r.otoken = orthIssue_(st, env);
+    r.otoken = orthIssue_(st, env, !!r.peek);   // 선생님 비밀번호로 들어온 '보기 전용'은 보기 전용 토큰
     r.orth = orthHomeData_(st, store, env);
     return r;
   };
@@ -212,12 +215,14 @@ if (typeof CORE_ACTIONS !== 'undefined') {
   CORE_ACTIONS.orthHome = function (req, store, env) {
     var a = orthAuth_(req, store, env);
     var res = { ok: true, me: publicStudent(a.st), orth: orthHomeData_(a.st, store, env) };
-    if (a.via === 't') res.otoken = orthIssue_(a.st, env);   // 트래커 토큰으로 들어오면 사이트 토큰을 새로 줌
+    if (a.via === 't') res.otoken = orthIssue_(a.st, env, a.peek);   // 트래커 토큰으로 들어오면 사이트 토큰을 새로 줌
+    if (a.peek) res.peek = true;
     return res;
   };
   // 푼 결과 올리기. res = [[문제번호, 1(맞힘)|0(틀림)], …], cid = 묶음 번호(같은 묶음이 두 번 와도 한 번만 반영)
   CORE_ACTIONS.orthSync = function (req, store, env) {
-    var st = orthAuth_(req, store, env).st;
+    var a = orthAuth_(req, store, env), st = a.st;
+    if (a.peek) return { ok: true, dup: true, peek: true, mine: orthMine_(store.orthGet(st.id) || orthBlank_(st)), board: orthBoard_(st, store, env, store.orthGet(st.id) || orthBlank_(st)) };   // 보기 전용은 기록 안 함
     var list = Array.isArray(req.res) ? req.res.slice(0, 300) : [];
     var cid = String(req.cid || '').slice(0, 40);
     var now = env.now();

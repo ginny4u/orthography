@@ -365,7 +365,7 @@ let srvT = {school:'', board:null, state:''};
 const BASE=()=>({school:null, src:null, srcKey:'', rng:['s','f','w','e'], type:null, n:10, st:{}, wrong:{}, day:'', dayIds:[], total:0, pending:[], outbox:null, bs:{sc:'school', per:'week'}, sk:{last:'', n:0}, open:false});
 let skey='orth.v1', store=BASE();
 function useStore(){
-  skey = auth ? 'orth.v1:'+auth.me.id : ghost ? 'orth.v1:ghost' : 'orth.v1';
+  skey = auth ? (auth.peek ? 'orth.v1:peek:' : 'orth.v1:')+auth.me.id : ghost ? 'orth.v1:ghost' : 'orth.v1';
   store = BASE();
   try{ const s=JSON.parse(lsGet(skey)||'null'); if(s) Object.assign(store, s); }catch(e){}
   if(!Array.isArray(store.pending)) store.pending=[];
@@ -378,9 +378,10 @@ function useStore(){
   else if(!SCHOOLS.includes(store.school)) store.school=null;
 }
 function save(){ lsSet(skey, JSON.stringify(store)); }
-function setAuth(token, me){
-  const same = !!auth && auth.me.id===me.id;
-  auth = {token, me:{id:me.id, name:me.name, school:me.school}, tt: same ? (auth.tt||'') : ''};
+// peek: 선생님 비밀번호로 들어온 '학생 화면 보기'. 푼 결과를 서버에 올리지 않고, 기록도 따로 둔다(트래커의 보기 전용과 같음)
+function setAuth(token, me, peek){
+  const same = !!auth && auth.me.id===me.id && !!auth.peek===!!peek;
+  auth = {token, me:{id:me.id, name:me.name, school:me.school}, tt: same ? (auth.tt||'') : '', peek: !!peek};
   lsSet(AKEY, JSON.stringify(auth));
   if(same){ store.school=canonSchool(me.school); save(); } else useStore();
 }
@@ -422,7 +423,7 @@ function applyOrth(o){
 // 푼 결과 올리기(묶음 번호가 같으면 서버가 한 번만 반영)
 let flushing=null;
 function flush(){
-  if(!auth || !API) return Promise.resolve(null);
+  if(!auth || !API || auth.peek) return Promise.resolve(null);
   if(flushing) return flushing;
   if(!store.outbox){
     if(!store.pending.length) return Promise.resolve(null);
@@ -447,7 +448,7 @@ function flush(){
 }
 // 창을 닫거나 다른 앱으로 넘어갈 때 남은 기록을 보내 둠(다음에 같은 묶음 번호로 다시 보내도 한 번만 셈)
 function beacon(){
-  if(!auth || !API || flushing || !navigator.sendBeacon) return;
+  if(!auth || !API || auth.peek || flushing || !navigator.sendBeacon) return;
   if(!store.outbox){ if(!store.pending.length) return; store.outbox={cid:newCid(), res:store.pending.splice(0,200)}; save(); }
   try{ navigator.sendBeacon(API, JSON.stringify({action:'orthSync', token:auth.token, cid:store.outbox.cid, res:store.outbox.res})); }catch(e){}
 }
@@ -469,7 +470,7 @@ function refresh(fromBoot){
     if(r && authErr(r)) return lost(fromBoot);
     return api('orthHome', {token:auth.token}).then(x=>{
       if(!auth || auth.me.id!==who) return;
-      if(x.ok && x.me){ setAuth(x.otoken||auth.token, x.me); applyOrth(x.orth); srv.at=Date.now(); }
+      if(x.ok && x.me){ setAuth(x.otoken||auth.token, x.me, auth.peek || !!x.peek); applyOrth(x.orth); srv.at=Date.now(); }
       else if(authErr(x)) return lost(fromBoot);
       else if(noServer(x)) srv.state='noserver';
       else if(!srv.board) srv.state='neterr';
@@ -568,7 +569,7 @@ const resetL = () => { L = {step:'name', name:'', matches:[], pick:null, err:'',
 function renderLogin(step){
   view='login'; setTabs(false); if(step) L.step=step;
   const err = L.err ? '<p class="err" role="alert">'+esc(L.err)+'</p>' : '';
-  const pw = (id, ac) => '<input id="'+id+'" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="'+ac+'" placeholder="••••">';
+  const pw = (id, ac) => '<input id="'+id+'" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="'+ac+'" placeholder="••••">';
   let html='';
   if(L.step==='wait') html=hero('불러오는 중…');
   else if(L.step==='name') html=hero('이름을 정확히 입력해 주세요.')+
@@ -627,7 +628,7 @@ function onLoginSubmit(ev){
     });
   } else if(f.id==='f-pw'){
     const pw=val('in-pw');
-    if(!/^\d{4}$/.test(pw)) return fail('숫자 4자리를 입력해 주세요.');
+    if(!/^\d{4,8}$/.test(pw)) return fail('숫자 4자리를 입력해 주세요.');   // 선생님 비밀번호(학생 화면 보기)는 더 길 수 있음
     busy();
     const id=L.pick.id;
     api('orthLogin', {id, pw})
@@ -670,9 +671,9 @@ function onLoginSubmit(ev){
   }
 }
 function enter(r){
-  setAuth(r.otoken || r.token, r.me);
-  // 트래커가 로그인 안 된 폰이면 트래커도 같이 로그인(트래커 쪽은 6시간 유지)
-  if(r.token && !lsGet('clinic.token')){ lsSet('clinic.token', r.token); lsSet('clinic.role', 'student'); auth.tt=r.token; lsSet(AKEY, JSON.stringify(auth)); }
+  setAuth(r.otoken || r.token, r.me, !!r.peek);
+  // 트래커가 로그인 안 된 폰이면 트래커도 같이 로그인(트래커 쪽은 6시간 유지). 선생님 비밀번호로 들어온 '보기 전용'은 제외
+  if(r.token && !r.peek && !lsGet('clinic.token')){ lsSet('clinic.token', r.token); lsSet('clinic.role', 'student'); auth.tt=r.token; lsSet(AKEY, JSON.stringify(auth)); }
   resetL(); guest=false; sess=null;
   if(r.orth){ applyOrth(r.orth); go('practice'); flush(); }
   else { srv.state = r.noOrth ? 'noserver' : 'loading'; go('practice'); if(!r.noOrth) refresh(false); }
@@ -741,6 +742,7 @@ function statsHTML(){
 function bubbleText(){
   if(ghost) return '👻 반가워요. 기본 개념 전체를 풀 수 있고, 기록은 이 폰에만 남아요.';
   if(!auth) return '선생님 페이지예요. '+esc(store.school)+' 학생이 보는 화면 그대로입니다. 여기서 푼 건 기록되지 않아요.';
+  if(auth.peek) return esc(auth.me.name)+' 학생 화면을 보고 있어요. 여기서 푼 건 그 학생 기록에 들어가지 않아요.';
   if(srv.state==='relogin') return '로그인이 만료됐어요. 다시 로그인하면 기록이 이어집니다.';
   const b = srv.board && srv.board.school ? srv.board.school.week : null, me = b && b.me;
   const t = todayCount();
@@ -825,7 +827,7 @@ function renderHome(){
   const sel = srcSel(), slots = slotsOf(store.school);
   const wrongN = Object.keys(store.wrong).length, sk = streak();
   const who = auth
-    ? '<p class="who"><b>'+esc(auth.me.name)+'</b> · '+esc(store.school)+(sk>1?' · <span class="streak">'+sk+'일 연속</span>':'')+' · <button type="button" class="linkbtn" id="out">로그아웃</button></p>'
+    ? '<p class="who">'+(auth.peek?'<span class="badge">보기 전용</span> ':'')+'<b>'+esc(auth.me.name)+'</b> · '+esc(store.school)+(sk>1?' · <span class="streak">'+sk+'일 연속</span>':'')+' · <button type="button" class="linkbtn" id="out">'+(auth.peek?'나가기':'로그아웃')+'</button></p>'
     : ghost ? '<p class="who"><b>👻</b>'+(sk>1?' · <span class="streak">'+sk+'일 연속</span>':'')+' · <button type="button" class="linkbtn" id="gout">나가기</button></p>'
     : '<p class="who"><span class="badge">선생님 페이지</span> <b>'+esc(store.school)+'</b> 학생 화면 · <button type="button" class="linkbtn" id="chs">학교 바꾸기</button>'+
       (guest && API ? ' · <button type="button" class="linkbtn" id="tout2">선생님 페이지 나가기</button>' : '')+'</p>';
@@ -917,7 +919,7 @@ function record(q, ok){
     if(!store.dayIds.includes(q.id)){ store.dayIds.push(q.id); store.total++; if(sess) sess.gained=(sess.gained||0)+1; }
     bumpStreak();
   } else { s.w++; store.wrong[q.id]=1; }
-  if(auth) store.pending.push([q.id, ok?1:0]);
+  if(auth && !auth.peek) store.pending.push([q.id, ok?1:0]);
   save();
 }
 function sentFilled(p, mode, chosen){
