@@ -812,4 +812,5 @@ if __name__ == '__main__':
     import pack as _pack
     js = _pack.emit('ORTH_COMMON', out, '')
     open(sys.argv[1], 'w', encoding='utf-8').write(js)
+    import stamp; stamp.run()
     print('arts', len(out['arts']), 'picks', len(P), 'blanks', len(B))

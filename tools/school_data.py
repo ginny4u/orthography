@@ -448,5 +448,6 @@ if __name__ == '__main__':
     import pack as _pack
     js = _pack.emit('ORTH_SCHOOL', out, 'tools/school_data.py로 만든 파일. 직접 고치지 말 것.')
     open(sys.argv[1], 'w', encoding='utf-8').write(js)
+    import stamp; stamp.run()
     for k, v in SCHOOLS.items():
         print(k, {s: (key, len(SRC[key]['arts']), len(SRC[key].get('picks', [])), len(SRC[key].get('blanks', []))) for s, key in v.items()})
