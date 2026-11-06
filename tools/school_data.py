@@ -438,7 +438,7 @@ SRC = dict(mirae=MIRAE, donga=DONGA, donga_dy=DONGA_DY, gh=GONGHANG_PR, hs=HANSE
 SCHOOLS = {
     '공항고': dict(tb='mirae', pr='gh'),
     '동양고': dict(tb='donga_dy'),
-    '명덕고': dict(tb='donga', pr='mdp', ol='md'),
+    '명덕고': dict(tb='donga', pr='mdp', ol='md', excl=[30]),   # 명덕고 시험 범위에서 사이시옷(제30항) 빠짐 → 모든 자료에서 제외
     '한서고': dict(tb='mirae', pr='hs'),
     '경복여고': dict(tb='donga'),
 }
@@ -450,4 +450,4 @@ if __name__ == '__main__':
     open(sys.argv[1], 'w', encoding='utf-8').write(js)
     import stamp; stamp.run()
     for k, v in SCHOOLS.items():
-        print(k, {s: (key, len(SRC[key]['arts']), len(SRC[key].get('picks', [])), len(SRC[key].get('blanks', []))) for s, key in v.items()})
+        print(k, {s: (key, len(SRC[key]['arts']), len(SRC[key].get('picks', [])), len(SRC[key].get('blanks', []))) for s, key in v.items() if s != 'excl'}, 'excl:', v.get('excl', []))

@@ -290,7 +290,7 @@ function ORTH_UNPACK(b64){
 }
 </script>
 <script src="data.js?v=8e0f903f"></script>
-<script src="school.js?v=53811328"></script>
+<script src="school.js?v=358e4003"></script>
 <script src="spot.js?v=77494439"></script>
 <script>
 (function(){
@@ -504,6 +504,8 @@ function srcSel(){
   const sel = store.src.filter(id=>ready.includes(id));
   return sel.length ? sel : ready;
 }
+// 학교 시험 범위에서 빠진 조항(학교 표의 excl): 그 학교 학생에겐 어느 자료에서도 안 낸다
+function exclOf(sc){ const m = SS.map[sc]; return new Set((m && m.excl) || []); }
 function scopeItems(sel, arts){
   // arts: 기본 개념에서 쓸 조항(장 고르기), sel: 고른 범위. 학교 자료 문제를 먼저 넣어 같은 문제면 자료 위치가 붙은 쪽을 씀
   const P = new Map(), B = new Map();
@@ -513,7 +515,8 @@ function scopeItems(sel, arts){
     s.P.forEach(addP); s.B.forEach(addB); s.arts.forEach(n=>want.add(n)); });
   if(sel.includes('base')) arts.forEach(n=>want.add(n));
   PICKS.forEach(p=>{ if(want.has(p.a) && !p.ez) addP(p); }); BLANKS.forEach(b=>{ if(want.has(b.a)) addB(b); });
-  return {P:[...P.values()], B:[...B.values()], S: SPOTS.filter(x=>x.arts.some(a=>want.has(a)))};
+  const ex = exclOf(store.school);
+  return {P:[...P.values()].filter(p=>!ex.has(p.a)), B:[...B.values()].filter(b=>!ex.has(b.a)), S: SPOTS.filter(x=>x.arts.some(a=>want.has(a)) && !x.arts.some(a=>ex.has(a)))};
 }
 function buildPool(type, S){
   const pick = p=>({kind:'pick', it:p, id:p.id});
@@ -529,6 +532,7 @@ function nFor(type){ return type==='swipe' ? SWIPE_N : store.n; }
 function startMode(type){ const pool=homePool(type); if(!pool.length) return; startSession(sample(pool, nFor(type)), {from:'home', type}); }
 // 조항 하나: 공통 문제 + 우리 학교 자료 중 그 조항 문제
 function artItems(n){
+  if(exclOf(store.school).has(n)) return {P:[], B:[]};   // 시험 범위에서 빠진 조항
   const sc=store.school, S=scopeItems(slotsOf(sc).filter(x=>x.ready && x.id!=='base').map(x=>x.id), new Set());
   const P=S.P.filter(p=>p.a===n), B=S.B.filter(b=>b.a===n), ids=new Set(P.map(p=>p.id).concat(B.map(b=>b.id)));
   PICKS.forEach(p=>{ if(p.a===n && !p.ez && !ids.has(p.id)) P.push(p); }); BLANKS.forEach(b=>{ if(b.a===n && !ids.has(b.id)) B.push(b); });
@@ -853,6 +857,8 @@ function renderHome(){
       : '<button type="button" class="chip" disabled>'+esc(x.label)+' 준비 중</button>').join('')+'</div>';
   const sub = sel.includes('base') ? '<div class="subscope"><div class="lab">기본 개념에서 풀 부분</div>'+chips(RANGES, store.rng, 'rng', true)+'</div>' : '';
   const srcs = sel.filter(id=>id!=='base').map(id=>'<li><b>'+SLOT_LABEL[id]+'</b>'+esc(schSrc(store.school, id).title)+'</li>').join('');
+  const exArts = [...exclOf(store.school)];
+  const exLine = exArts.length ? '<p class="note" style="margin-top:6px">'+esc(store.school)+' 시험 범위에서 빠진 조항이라 안 내는 것: '+exArts.map(n=>'제'+n+'항 '+esc((ART[n]||{}).k||'')).join(', ')+'</p>' : '';
   // 이 범위에서 몇 문제 중 몇 개를 맞혀 봤는지(유형별로 따로 셈). 같은 게 자꾸 나온다는 항의를 줄이려고 보여 준다
   const prog = (()=>{ const t = cur||'pick', pool = homePool(t), done = pool.filter(q=>(store.st[q.id]||{}).c>0).length;
     return {t, n:pool.length, done}; })();
@@ -860,7 +866,7 @@ function renderHome(){
     (prog.n && prog.done>=prog.n ? ' · 다 풀었어요. 범위를 넓히거나 다른 유형을 골라 보세요.' : '')+'</p>';
   const summary = '범위: '+sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · 한 번에 '+(cur==='swipe'?SWIPE_N+'장':store.n+'문제')+' · '+prog.done+'/'+prog.n;
   const settings = !store.open ? '' : '<div class="settings">'+
-    '<h2 class="sec" style="margin-top:12px">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+progLine+
+    '<h2 class="sec" style="margin-top:12px">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+exLine+progLine+
     '<h2 class="sec">한 번에 풀 문제</h2>'+(cur==='swipe' ? '<p class="note" style="margin-top:0">쓱쓱 넘기기는 항상 '+SWIPE_N+'장씩 넘겨요.</p>' : chips([5,10,15].map(n=>({id:n,label:n+'문제'})), store.n, 'n', false))+
     '<p class="note">틀린 문제와 안 푼 문제가 먼저 나옵니다.</p></div>';
   app.innerHTML =
@@ -1213,7 +1219,7 @@ function fitEyebrow(){
   if(n>1 && target>nat) sp.style.letterSpacing=((target-nat)/(n-1))+'px';
 }
 document.fonts.ready.then(fitEyebrow); window.addEventListener('resize', fitEyebrow); window.addEventListener('load', fitEyebrow); setTimeout(fitEyebrow, 1500);
-window.__cnt = t => homePool(t).length;   // 자동 검사용(화면에는 안 씀)
+window.__cnt = t => homePool(t).length; window.__pool = t => homePool(t).map(q=>({a:q.it.a, arts:q.it.arts||[]}));   // 자동 검사용   // 자동 검사용(화면에는 안 씀)
 window.__sess = () => sess;   // 자동 검사용
 })();
 </script>
