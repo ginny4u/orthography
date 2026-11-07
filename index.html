@@ -779,15 +779,16 @@ function rankHTML(b, all, teach){
   } else msg = '한 문제만 맞혀도 순위에 올라갑니다.';
   return '<div class="rank">'+rows+'</div><div class="rank-msg go">'+msg+'</div>';
 }
-// 학교 대항: 1인당 맞힌 문제로 줄 세우되, 학교 크기 차이를 줄이려고 나누는 인원을 15~30명 사이로 맞춘다
-// (10명 학교는 15명 몫을 해야 하고, 41명 학교는 30명으로만 나눔. 분자는 전원 포함)
-const VS_MIN = 15, VS_MAX = 30;
-const vsDiv = n => Math.min(VS_MAX, Math.max(VS_MIN, n||0));
+// 학교 대항: 학교 전체가 맞힌 문제 수 ÷ 나누는 인원. 분자는 전원 포함.
+// 나누는 인원은 학교별로 보정(경쟁이 붙은 상위 학교끼리 차이가 너무 벌어지지 않게). 표에 없는 학교는 재원생 수 그대로.
+//   동양: 35명까지만 / 경복: 13명 이상으로 / 명덕: 16명까지만
+const VS_ADJ = { '동양': n => Math.min(n, 35), '경복': n => Math.max(n, 13), '명덕': n => Math.min(n, 16) };
+const vsDiv = (s, n) => (VS_ADJ[schoolKey(s)] || (x => x))(n||0);
 function vsHTML(){
   const teach = !auth && guest && !!teachTok, S = teach ? srvT : srv;
   const sch = S.board && S.board.sch; if(!sch || !sch.length) return '';
   const per = store.bs.per==='total' ? 'total' : 'week', key = per==='week'?'w':'t', pk = per==='week'?'pw':'pt';
-  const rows = sch.map(x=>({s:x.s, n:x.n, p:x[pk], d:x[key], avg: x.n ? x[key]/vsDiv(x.n) : 0})).sort((a,b)=>b.avg-a.avg || b.d-a.d);
+  const rows = sch.map(x=>({s:x.s, n:x.n, p:x[pk], d:x[key], avg: x.n ? x[key]/vsDiv(x.s, x.n) : 0})).sort((a,b)=>b.avg-a.avg || b.d-a.d);
   const max = Math.max(...rows.map(r=>r.avg), 0.0001);
   return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'누적')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
     '<div class="v'+(sameSchool(r.s, store.school)?' me':'')+'"><span class="s">'+(i+1)+'위 '+esc(r.s)+'</span><span class="m"><i style="width:'+(r.avg/max*100)+'%"></i></span>'+
