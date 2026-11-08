@@ -106,6 +106,13 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .qsent.p2{margin:0 0 6px;font-size:18px}
 .qsent .pn{color:var(--accent);font-weight:600}
 .opts.two .opt.pw{font-size:16px;line-height:1.5}
+.mark.bad{text-decoration:underline wavy var(--accent);text-underline-offset:4px}
+.tw{display:flex;gap:8px;margin-top:14px}
+.tin{flex:1;min-width:0;font:inherit;font-size:18px;padding:10px 12px;border:1.5px solid var(--rule);border-radius:12px;background:#fff}
+.tin:focus{outline:none;border-color:var(--accent)}
+.tin.ok{border-color:#2a9d5c;background:#f0faf3}
+.tw.ok .tin{border-color:#2a9d5c}.tw.ng .tin{border-color:var(--accent)}
+.fixw{margin:12px 0 4px}.fixw p{margin:0 0 6px;font-size:14px;color:var(--muted)}.fixw label{display:flex;align-items:center;gap:8px;margin-bottom:6px}.fixw .pn{color:var(--accent);font-weight:600}
 .opt.pw span{display:block}
 .opt{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:14px;text-align:left;font-size:16px;line-height:1.5}
 .opts.two .opt{text-align:center;font-size:18px;font-weight:500;line-height:normal;padding:16px 10px}
@@ -348,7 +355,7 @@ const TYPES = [
   {id:'swipe', label:'쓱쓱 넘기기', desc:'문장 하나씩, 맞으면 오른쪽 · 틀리면 왼쪽으로 밀어요.'},
   {id:'spot', label:'틀린 곳 찾기', desc:'카톡 대화에 숨은 틀린 표기를 눌러 찾아요.'},
 ];
-const KIND_LABEL = {pick:'바른 표기 고르기', pair:'바른 표기 고르기 · 두 문장', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
+const KIND_LABEL = {pick:'바른 표기 고르기', pair:'바른 표기 고르기 · 두 문장', type:'직접 쓰기 · 3개째 도장', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
 function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
 const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
 const BLANKS = [];   // 조항 빈칸 유형은 뺐음(답이 문장 안에 보여서). 데이터(D.blanks)만 남아 있음
@@ -360,8 +367,17 @@ const pairOf = it => (it && it.o && it.x) ? PAIRS[it.o+'|'+it.x] : undefined;
 const MEANING_STEP = false;   // 뜻 먼저 고르기 단계: 효과가 없다고 보고 끔(2026-11-08 사용자 결정). 짝은 쓱쓱에서 빼는 데만 씀
 // 단어 열쇠: 쓱쓱(o+번호)과 바른 표기 고르기(번호)는 같은 단어(서버와 같은 기준)
 const wordKey = id => /^op/.test(id) ? id.slice(1) : id;
-const RUN_N = 3;   // 서로 다른 날 연속으로 이만큼 맞히면 '익힘'. 같은 단어는 하루에 한 번만 셈(서버 orth.gs와 같은 규칙)
-const kstDay = () => Math.floor((Date.now()+9*36e5)/864e5);   // 날짜 번호(한국 시간). 서버 orthDayNo_와 같은 식
+// 도장: 단어마다 3개. 날짜가 다르고 10시간 지나야 다음 도장. 유형별로 올라갈 수 있는 수(계단): 쓱쓱 1 · 고르기 2 · 직접 쓰기 3. 틀리면 그 단어 도장이 다 지워짐(쓰기에서 틀린 건 빼고). 서버 orth.gs와 같은 규칙
+const RUN_N = 3, GAP_H = 10, CAPC = {s:1, p:2, t:3};
+const hourNo = () => Math.floor(Date.now()/36e5);
+const rdH = v => { v=+v||0; return v && v<1e5 ? v*24+3 : v; };   // 옛 기록(날짜 번호)은 그날 정오로
+const dayOfH = h => Math.floor((h+9)/24);
+const kstDay = () => dayOfH(hourNo());
+const lvl = k => Math.min(RUN_N, +store.run[k]||0);
+const canStamp = k => { const h=rdH(store.rd[k]), n=hourNo(); return !h || (dayOfH(h)!==dayOfH(n) && n-h>=GAP_H); };   // 지금 이 단어에 도장을 찍을 수 있나
+const kindCode = q => q.kind==='swipe' ? 's' : q.kind==='type' ? 't' : 'p';
+const typeable = it => it.s!=='□' || !(it.ns || pairOf(it));   // 직접 쓰기로 낼 수 있나(뜻으로 가르는 짝은 문장이 있어야)
+const normW = v => String(v||'').normalize('NFC').trim().replace(/\s+/g,' ');
 const mastCount = () => Object.keys(store.run||{}).filter(k=>store.run[k]>=RUN_N).length;
 const kanSum = () => Object.keys(store.run||{}).reduce((n,k)=>n+Math.min(RUN_N, +store.run[k]||0), 0);   // 도장 합(단어마다 0~3개, 서버 kan). '이번 주' 순위는 이번 주에 모은 도장
 const SPOTS = (window.ORTH_SPOT||[]).map(it=>{
@@ -444,11 +460,11 @@ function applyMine(m){
   store.total=+m.total||0; store.day=m.day||''; store.dayIds=(m.dayIds||[]).slice();
   unsent().forEach(([id,ok])=>{ if(ok && store.day===today() && !store.dayIds.includes(id)){ store.dayIds.push(id); store.total++; } });
 }
-function applyRes(id, ok){
-  const s=store.st[id]||(store.st[id]={c:0,w:0}), k=wordKey(id);
-  if(ok){ s.c++; delete store.wrong[id]; const t=kstDay();
-    if(store.rd[k]!==t){ store.run[k]=Math.min(RUN_N, (store.run[k]||0)+1); if(store.run[k]>=RUN_N) delete store.rd[k]; else store.rd[k]=t; } }
-  else { s.w++; store.wrong[id]=1; delete store.run[k]; delete store.rd[k]; }
+function applyRes(id, ok, kc){
+  const s=store.st[id]||(store.st[id]={c:0,w:0}), k=wordKey(id); kc = CAPC[kc] ? kc : 'p';
+  if(ok){ s.c++; delete store.wrong[id]; const lv=lvl(k);
+    if(lv<CAPC[kc] && canStamp(k)){ store.run[k]=lv+1; store.rd[k]=hourNo(); } }
+  else { s.w++; store.wrong[id]=1; if(kc!=='t'){ delete store.run[k]; delete store.rd[k]; } }
 }
 function applyOrth(o){
   if(!o) return;
@@ -569,12 +585,17 @@ function pairUp(items, scope){
     else out.push({kind:'pick', it:p, id:p.id}); });
   return out;
 }
+// 바른 표기 문제 만들기: 도장 2개째이고 오늘 찍을 수 있는 단어는 '직접 쓰기', 나머지는 짝 문장 묶기 → 고르기
+function mkPick(items, scope){
+  const ty = items.filter(p=>lvl(wordKey(p.id))===2 && canStamp(wordKey(p.id)) && typeable(p)), tys = new Set(ty.map(p=>p.id));
+  return ty.map(p=>({kind:'type', it:p, id:p.id})).concat(pairUp(items.filter(p=>!tys.has(p.id)), scope));
+}
 function buildPool(type, S){
   const pick = p=>({kind:'pick', it:p, id:p.id});
-  if(type==='pick') return pairUp(S.P);
+  if(type==='pick') return mkPick(S.P);
   if(type==='spot') return S.S.map(x=>({kind:'spot', it:x, id:x.id}));
   if(type==='swipe') return S.P.filter(p=>!pairOf(p) && !p.ns).map(p=>({kind:'swipe', it:p, id:'o'+p.id}));   // 뜻으로 가르는 짝(pairs.js, 클리닉 ns)은 쓱쓱에서 뺌(다른 뜻의 낱말을 '틀림'으로 보여 주지 않으려고)
-  return pairUp(S.P);
+  return mkPick(S.P);
 }
 const homePool = (type) => buildPool(type||store.type, scopeItems(srcSel(), allowedArts(store.rng)));
 const scopeP = () => scopeItems(srcSel(), allowedArts(store.rng)).P;   // 지금 범위의 바른 표기 문제(짝으로 안 묶은 낱개)
@@ -590,12 +611,25 @@ function artItems(n){
   PICKS.forEach(p=>{ if(p.a===n && !p.ez && !ids.has(p.id)) P.push(p); }); BLANKS.forEach(b=>{ if(b.a===n && !ids.has(b.id)) B.push(b); });
   return {P, B};
 }
-function weight(id){ const s=store.st[id]; if(store.wrong[id]) return 5; if(!s) return 3; if(s.w>s.c) return 3; return 1; }
+// 문제 뽑는 무게: 틀린 것 5 · 오늘 도장 받을 단어 3(2개째라 쓰기면 4) · 오늘 이미 받은 단어 1 · 도장 다 모은 단어는 7일 지나면 2(확인용), 그 전엔 0.3
+function weight(q){
+  let w=0;
+  (q.kind==='pair' ? [q.id, q.id2] : [q.id]).forEach(id=>{
+    const k=wordKey(id), lv=lvl(k); let x;
+    if(store.wrong[id]) x=5;
+    else if(lv>=RUN_N){ const h=rdH(store.rd[k]); x = (!h || hourNo()-h>=7*24) ? 2 : 0.3; }
+    else if(!canStamp(k)) x=1;
+    else if(q.kind==='swipe' && lv>=1) x=1.5;   // 쓱쓱으로는 1개까지만
+    else x = lv===2 ? 4 : 3;
+    w=Math.max(w,x); });
+  return w;
+}
 function sample(pool, n){
-  return pool.map(q=>({q, k:Math.pow(Math.random(), 1/Math.max(weight(q.id), q.id2 ? weight(q.id2) : 0))})).sort((a,b)=>b.k-a.k).slice(0,n).map(x=>x.q);
+  return pool.map(q=>({q, k:Math.pow(Math.random(), 1/weight(q))})).sort((a,b)=>b.k-a.k).slice(0,n).map(x=>x.q);
 }
 function prepare(q){
   if(q.kind==='pick') q.opts = shuffle([q.it.o, q.it.x]);
+  if(q.kind==='type' && !typeable(q.it)) q.kind='pick', q.opts = shuffle([q.it.o, q.it.x]);
   if(q.kind==='pair') q.opts = shuffle([0, 1]);   // 0: ①에 바른 표기 · ②에 그 짝(맞음), 1: 뒤바꿈
   if(q.kind==='swipe') q.show = Math.random()<.5;   // true면 바른 표기를 보여 줌
   if(q.kind==='spot'){ q.bad = {}; q.it.t.forEach((b,bi)=>b[1].forEach((p,pi)=>{ if(typeof p!=='string' && p.o) q.bad[bi+'-'+pi] = Math.random()<.6; })); }  // 틀리게 보여 줄 자리(없을 수도 있음)
@@ -798,28 +832,33 @@ function statsHTML(){
   return '<div class="card"><div class="stats"><div class="stat"><b>'+todayCount()+'</b><span>오늘 맞힘</span></div><div class="stat"><b>'+mastCount()+'</b><span>익힌 단어</span></div><div class="stat"><b>'+Object.keys(store.wrong).length+'</b><span>오답 노트</span></div></div></div>';
 }
 // 아직 못 익힌 단어: 이 범위의 바른 표기 문제 중 틀린 적이 있고 아직 익힘이 아닌 것. 많이 틀린 순으로 8개
-function weakList(){
+// 오늘 도장 받을 수 있는 단어(지금 범위). 2개째(쓰기 차례) → 틀린 적 많은 순
+function todayList(){
   if(!auth && !ghost) return [];
-  return scopeP().map(p=>{ const q={kind:'pick', it:p, id:p.id}, s=store.st[q.id]||{c:0,w:0}, so=store.st['o'+q.id]||{c:0,w:0}; return {q, w:s.w+so.w, c:s.c+so.c}; })
-    .filter(x=>x.w>0 && (store.run[wordKey(x.q.id)]||0)<RUN_N)
-    .sort((a,b)=>b.w-a.w || (a.c/(a.c+a.w))-(b.c/(b.c+b.w))).slice(0,8);
+  return scopeP().map(p=>{ const k=wordKey(p.id), s=store.st[p.id]||{c:0,w:0}, so=store.st['o'+p.id]||{c:0,w:0}; return {it:p, lv:lvl(k), ok:lvl(k)<RUN_N && canStamp(k), w:s.w+so.w, c:s.c+so.c}; })
+    .filter(x=>x.ok).sort((a,b)=>b.lv-a.lv || b.w-a.w || (a.c+a.w)-(b.c+b.w));
 }
+const todayCountW = () => todayList().length;
+// 바른 표기를 그대로 보여 주면 답을 외우고 풀게 되므로 두 표기를 섞어서 보여 줌
+const twoForms = p => (h(p.id).charCodeAt(0)%2 ? [p.o, p.x] : [p.x, p.o]).map(esc).join(' <i class="sep">/</i> ');
 function weakHTML(){
-  const L=weakList(); if(!L.length) return '';
-  return '<h2 class="sec">아직 못 익힌 단어</h2><div class="card"><ul class="weak">'+L.map(x=>'<li><b>'+esc(x.q.it.o)+'</b><small>제'+x.q.it.a+'항 · '+x.c+'번 맞고 '+x.w+'번 틀림 · 도장 '+(store.run[wordKey(x.q.id)]||0)+'/3</small></li>').join('')+'</ul>'+
-    '<p class="note">도장 3개를 모으면 익힌 단어로 넘어가요. 같은 단어는 하루에 도장 1개만 찍혀요.</p><button type="button" class="btn primary wide" id="weakgo">이 단어들만 풀기</button></div>';
+  const L=todayList(); if(!L.length) return '';
+  const stp = x => x.lv===2 ? '직접 쓰기 차례' : '도장 '+x.lv+'/3';
+  return '<h2 class="sec">오늘 도장 받을 단어 '+L.length+'개</h2><div class="card"><ul class="weak">'+L.slice(0,8).map(x=>'<li><b>'+twoForms(x.it)+'</b><small>제'+x.it.a+'항 · '+stp(x)+(x.w?' · '+x.w+'번 틀림':'')+'</small></li>').join('')+'</ul>'+
+    (L.length>8?'<p class="note">외 '+(L.length-8)+'개</p>':'')+
+    '<p class="note">단어마다 도장 3개를 모으면 익힌 단어예요. 하루 한 번 맞히면 1개 찍히고, 틀리면 그 단어 도장이 다 지워져요. 쓱쓱 넘기기로는 1개까지, 고르기로는 2개까지, 3개째는 직접 써야 찍혀요.</p><button type="button" class="btn primary wide" id="weakgo">'+(L.length>15?'15개 풀기':'이 단어들 풀기')+'</button></div>';
 }
-function startWeak(){ const L=weakList(); if(!L.length) return; startSession(shuffle(pairUp(L.map(x=>x.q.it), L.map(x=>x.q.it).concat(scopeP()))), {from:'weak'}); }
+function startWeak(){ const L=todayList().slice(0,15).map(x=>x.it); if(!L.length) return; startSession(shuffle(mkPick(L, L.concat(scopeP()))), {from:'weak'}); }
 // 선생님 페이지: 학생별 표(익힌 단어 수, 이번 주 새로 익힘, 푼 수, 2초 안에 답한 비율, 마지막 활동)
 function teachStatsHTML(){
   const S=srvT.stats; if(!S) return srvT.statsState==='loading' ? '<p class="note">학생별 표 불러오는 중…</p>' : '';
   if(!S.length) return '<p class="note">이 학교 재원생 기록이 없습니다.</p>';
   const when = iso => { if(!iso) return '-'; const d=new Date(iso); if(isNaN(d)) return '-'; const n=Math.floor((Date.now()-d)/864e5); return n<=0?'오늘':n===1?'어제':n+'일 전'; };
-  return '<h2 class="sec">학생별 기록</h2><div class="card tstat"><table><thead><tr><th>이름</th><th>익힌</th><th>이번 주 도장</th><th>푼 수</th><th>빨리 넘김</th><th>마지막</th></tr></thead><tbody>'+
+  return '<h2 class="sec">학생별 기록</h2><div class="card tstat"><table><thead><tr><th>이름</th><th>도장<small>익힌 단어</small></th><th>이번 주</th><th>푼 수</th><th>빨리 넘김</th><th>마지막</th></tr></thead><tbody>'+
     S.map(r=>{ const fp = r.tn ? Math.round(r.fastN/r.tn*100) : null, fa = r.fastN ? Math.round((r.fastC||0)/r.fastN*100) : null;
       // 다 아는 학생도 빨리 넘기므로, 빨리 넘긴 답을 많이 틀릴 때만 표시(빨리 넘긴 답 10개 이상, 그중 정답률 75% 아래)
       const hot = r.fastN>=10 && fa<75;
-      return '<tr><td>'+esc(r.n)+(r.old?'<small>개편 전</small>':'')+'</td><td><b>'+r.mast+'</b></td><td>'+(r.wk?'+'+r.wk:'')+'</td><td>'+r.solved+'</td><td'+(hot?' class="hot"':'')+'>'+(fp===null?'-':fp+'%')+(r.fastN?'<small>그중 맞힘 '+fa+'%</small>':'')+'</td><td>'+when(r.at)+'</td></tr>'; }).join('')+
+      return '<tr><td>'+esc(r.n)+(r.old?'<small>개편 전</small>':'')+'</td><td><b>'+(r.kan||0)+'</b><small>'+r.mast+'</small></td><td>'+(r.wk?'+'+r.wk:'')+'</td><td>'+r.solved+'</td><td'+(hot?' class="hot"':'')+'>'+(fp===null?'-':fp+'%')+(r.fastN?'<small>그중 맞힘 '+fa+'%</small>':'')+'</td><td>'+when(r.at)+'</td></tr>'; }).join('')+
     '</tbody></table><p class="note">빨리 넘김: 문제가 뜬 뒤 2초 안에 답한 비율이에요(시간 기록이 생긴 뒤부터). 다 아는 학생도 빨리 넘길 수 있어서, 빨리 넘긴 답이 10개 이상이고 그중 정답률이 75% 아래일 때만 주황으로 표시해요. 학생에게는 안 보여요.</p></div>';
 }
 // 캐릭터 한마디: 순위표 상황에 맞춰
@@ -843,7 +882,7 @@ function bubbleText(){
   return '느낌이 아니라 조항을 근거로 골라 보세요.';
 }
 function rankHTML(b, all, teach, per){
-  const wk = per==='week', pre = wk ? '도장 ' : '', one = wk ? '도장 한 개만 모아도' : '한 단어만 익혀도';
+  const wk = per==='week', pre = '도장 ', one = '도장 한 개만 모아도';
   if(!b.top.length) return '<div class="rank-msg">'+(teach?'아직 기록이 없습니다.':'아직 기록이 없습니다. '+one+' 1위입니다.')+'</div>';
   const row = g => '<div class="r'+(g.r<=3?' top':'')+(g.me?' me':'')+'"><span class="no">'+g.r+'위</span><span class="nm">'+
     g.n.map(x=>'<span>'+esc(x[0])+(all && x[1] ? '<small>'+esc(x[1])+'</small>' : '')+'</span>').join(' <i class="sep">·</i> ')+
@@ -854,7 +893,7 @@ function rankHTML(b, all, teach, per){
   const me=b.me; let msg;
   if(me){
     if(me.up) msg=me.up.r+'위까지 '+pre+me.up.gap+'개 남았습니다.';
-    else if(me.tied>1) msg='공동 1위입니다. '+(wk?'도장 한 개만 더 모으면':'한 단어만 더 익히면')+' 단독 1위입니다.';
+    else if(me.tied>1) msg='공동 1위입니다. 도장 한 개만 더 모으면 단독 1위입니다.';
     else if(me.lead) msg='2위보다 '+pre+me.lead+'개 앞서 있습니다.';
     else msg='현재 1위입니다.';
   } else msg = one+' 순위에 올라갑니다.';
@@ -873,8 +912,8 @@ function vsHTML(){
   const max = Math.max(...rows.map(r=>r.avg), 0.0001);
   return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'누적')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
     '<div class="v'+(sameSchool(r.s, store.school)?' me':'')+'"><span class="s">'+(i+1)+'위 '+esc(r.s)+'</span><span class="m"><i style="width:'+(r.avg/max*100)+'%"></i></span>'+
-    '<span class="d">1인당 '+(per==='week'?'도장 ':'')+'<b>'+(Math.round(r.avg*10)/10)+'개</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
-    '</div><p class="note">'+(per==='week'?'학교 전체가 이번 주에 모은 도장 수를 인원으로 나눈 값이에요.':'학교 전체가 익힌 단어 수를 인원으로 나눈 값이에요.')+' 인원이 많은 학교가 손해 보지 않게, 나누는 인원을 조금 보정했어요.<br>안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
+    '<span class="d">1인당 도장 <b>'+(Math.round(r.avg*10)/10)+'개</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
+    '</div><p class="note">'+(per==='week'?'학교 전체가 이번 주에 모은 도장 수를 인원으로 나눈 값이에요.':'학교 전체가 지금까지 모은 도장 수를 인원으로 나눈 값이에요.')+' 인원이 많은 학교가 손해 보지 않게, 나누는 인원을 조금 보정했어요.<br>안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
 }
 function boardHTML(){
   const teach = !auth && guest && !!teachTok;
@@ -892,7 +931,7 @@ function boardHTML(){
   return '<div class="card"><div class="seg">'+
     chips([{id:'school', label:store.school}, {id:'all', label:'전체'}], sc, 'sc', false)+
     chips([{id:'week', label:'이번 주'}, {id:'total', label:'누적'}], per, 'per', false)+'</div>'+
-    '<p class="note bnote">'+(per==='week' ? '이번 주에 모은 도장이에요. 단어마다 도장 3개를 모으면 익힌 단어예요. 하루 한 번 맞히면 1개 찍히고, 틀리면 그 단어 도장이 다 지워져요.' : '지금까지 익힌 단어 수예요. 틀리면 그 단어만 다시 익히는 중으로 돌아가요.')+'</p>'+
+    '<p class="note bnote">'+(per==='week' ? '이번 주에 모은 도장이에요. 단어마다 도장 3개를 모으면 익힌 단어예요. 하루 한 번 맞히면 1개 찍히고, 틀리면 그 단어 도장이 다 지워져요.' : '지금까지 모은 도장이에요. 단어마다 도장 3개까지고, 3개를 다 모으면 익힌 단어예요. 틀리면 그 단어 도장이 다 지워져요.')+'</p>'+
     body+'</div>'+(teach?teachStatsHTML():statsHTML()+weakHTML());
 }
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -946,7 +985,8 @@ function renderHome(){
   const prog = (()=>{ const t = cur||'pick', pool = homePool(t), done = pool.filter(q=>(store.st[q.id]||{}).c>0).length;
     return {t, n:pool.length, done}; })();
   const progLine = '<p class="note prog">이 범위의 '+((TYPES.find(x=>x.id===prog.t)||{}).label||'')+' <b>'+prog.n+'문제</b> 중 맞혀 본 문제 <b>'+prog.done+'개</b>'+(prog.n ? ' ('+Math.round(prog.done/prog.n*100)+'%)' : '')+
-    (prog.n && prog.done>=prog.n ? ' · 다 풀었어요. 범위를 넓히거나 다른 유형을 골라 보세요.' : '')+'</p>';
+    (prog.n && prog.done>=prog.n ? ' · 다 풀었어요. 범위를 넓히거나 다른 유형을 골라 보세요.' : '')+
+    ((auth||ghost) && prog.t!=='spot' ? '<br>오늘 도장 받을 수 있는 단어 <b>'+todayCountW()+'개</b>' : '')+'</p>';
   const summary = '범위: '+sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · 한 번에 '+(cur==='swipe'?SWIPE_N+'장':store.n+'문제')+' · '+prog.done+'/'+prog.n;
   const settings = !store.open ? '' : '<div class="settings">'+
     '<h2 class="sec" style="margin-top:12px">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+exLine+progLine+
@@ -1002,7 +1042,7 @@ function startWrong(){
     return {kind, it, id};
   }).filter(Boolean);
   // 바른 표기 문제는 짝 문장이 지금 범위에 있으면 두 문장으로 같이
-  const pk = qs.filter(q=>q.kind==='pick').map(q=>q.it), all = qs.filter(q=>q.kind!=='pick').concat(pairUp(pk, pk.concat(scopeP())));
+  const pk = qs.filter(q=>q.kind==='pick').map(q=>q.it), all = qs.filter(q=>q.kind!=='pick').concat(mkPick(pk, pk.concat(scopeP())));
   startSession(shuffle(all).slice(0,15), {from:'wrong'});
 }
 function startArt(n){
@@ -1015,13 +1055,13 @@ function record(q, ok){
   const sec = sess && sess.t0 ? Math.max(0, Math.round((Date.now()-sess.t0)/100)/10) : null;
   const before = mastCount(), k0 = kanSum();
   (q.kind==='pair' ? [q.it.id, q.it2.id] : [q.id]).forEach(id=>{   // 짝 문장은 두 문제를 같이 기록(둘 다 맞음 또는 둘 다 틀림)
-    applyRes(id, ok);
+    applyRes(id, ok, kindCode(q));
     if(ok){
       if(store.day!==today()){ store.day=today(); store.dayIds=[]; }
       if(!store.dayIds.includes(id)){ store.dayIds.push(id); store.total++; if(sess) sess.gained=(sess.gained||0)+1; }
       bumpStreak();
     }
-    if(auth && !auth.peek) store.pending.push(sec===null ? [id, ok?1:0] : [id, ok?1:0, sec]);
+    if(auth && !auth.peek) store.pending.push([id, ok?1:0, sec===null ? -1 : sec, kindCode(q)]);
   });
   if(sess){ const d = mastCount()-before; if(d>0) sess.mastGain=(sess.mastGain||0)+d; else if(d<0) sess.mastLost=(sess.mastLost||0)-d; sess.kanGain=(sess.kanGain||0)+kanSum()-k0; }
   save();
@@ -1066,6 +1106,10 @@ function renderQ(){
     body='<p class="mnote">두 문장의 빈칸에 들어갈 표기를 함께 고르세요.</p>'+
       '<p class="qsent p2" id="qs"><b class="pn">①</b> '+sentFilled(a,'blank')+'</p><p class="qsent p2" id="qs2"><b class="pn">②</b> '+sentFilled(b,'blank')+'</p>'+
       '<div class="opts two">'+q.opts.map((o,k)=>'<button type="button" class="opt pw" data-o="'+k+'"><span>① '+esc(w(o)[0])+'</span><span>② '+esc(w(o)[1])+'</span></button>').join('')+'</div>';
+  } else if(q.kind==='type'){
+    const cue = it.s==='□' ? '<p class="qsent" id="qs"><span class="mark bad">'+esc(it.x)+'</span></p>' : '<p class="qsent" id="qs">'+esc(it.s).replace('□','<span class="mark bad">'+esc(it.x)+'</span>')+'</p>';
+    body='<p class="mnote">'+(it.s==='□' ? '이 표기를 바르게 고쳐 쓰세요.' : '밑줄 친 표기를 이 문장에 맞게 바르게 고쳐 쓰세요.')+'</p>'+cue+
+      '<form class="tw" id="tf"><input class="tin" id="ti" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="바른 표기" aria-label="바른 표기"><button type="submit" class="btn primary">확인</button></form>';
   } else if(q.kind==='spot'){
     body='<p class="note" style="margin:0 0 12px">틀린 표기가 있으면 모두 눌러 고르세요. 하나도 없을 수도 있어요.</p><div class="chat">'+it.t.map((b,bi)=>
       '<div class="msg '+b[0]+'"><div class="bb">'+b[1].map((p,pi)=> typeof p==='string'
@@ -1091,6 +1135,9 @@ function renderQ(){
     bindSwipe(q);
   } else if(q.kind==='pair'){
     app.querySelectorAll('.opt').forEach(b=>b.onclick=()=>answerPair(q, +b.dataset.o));
+  } else if(q.kind==='type'){
+    const f=document.getElementById('tf'), inp=document.getElementById('ti'); inp.focus();
+    f.onsubmit=e=>{ e.preventDefault(); if(!normW(inp.value)) return; answerType(q, inp.value); };
   } else if(mstep){
     app.querySelectorAll('.opt').forEach(b=>b.onclick=()=>answerMeaning(q, +b.dataset.m));
   } else {
@@ -1108,6 +1155,14 @@ function answerMeaning(q, k){
   afterAnswer(false, q, '<div class="why"><b>뜻이 달라요.</b> 이 문장의 □은 ‘'+esc(pr[0])+'’라는 뜻이라 ‘'+esc(q.it.o)+'’로 적습니다. ‘'+esc(q.it.x)+'’는 ‘'+esc(pr[1])+'’라는 뜻일 때 씁니다.</div>'+whyLine(q.it));
   sess.res[sess.res.length-1].chosen = '뜻을 ‘'+chosen+'’로 고름';
 }
+// 직접 쓰기: 글자가 똑같아야 정답(띄어쓰기 포함, 앞뒤 공백만 무시)
+function answerType(q, val){
+  const it=q.it, ok = normW(val)===normW(it.o);
+  const f=document.getElementById('tf'); f.querySelector('input').disabled=true; f.querySelector('button').disabled=true; f.classList.add(ok?'ok':'ng');
+  document.getElementById('qs').innerHTML = it.s==='□' ? (ok ? '<span class="slot on">'+esc(it.o)+'</span>' : '<span class="fix"><s>'+esc(normW(val))+'</s><b>'+esc(it.o)+'</b></span>') : sentFilled(it, ok?'ok':'fix', normW(val));
+  afterAnswer(ok, q, (ok ? '' : '<p class="cap" style="margin:0 0 6px">쓰기에서 틀린 건 도장이 지워지지 않아요. 오늘은 3개째 도장을 못 받고, 내일 다시 쓸 수 있어요.</p>')+whyLine(it));
+  if(!ok) sess.res[sess.res.length-1].chosen=normW(val);
+}
 // 짝 문장: ①·② 표기를 함께 골라 둘 다 맞아야 정답
 function answerPair(q, k){
   const btns=[...app.querySelectorAll('.opt')]; btns.forEach(b=>b.disabled=true);
@@ -1117,13 +1172,21 @@ function answerPair(q, k){
   document.getElementById('qs2').innerHTML = '<b class="pn">②</b> '+sentFilled(q.it2, ok?'ok':'fix', q.it2.x);
   afterAnswer(ok, q, whyLine(q.it)+(q.it2.w!==q.it.w || q.it2.a!==q.it.a ? whyLine(q.it2) : ''));
 }
+// 틀리면 바른 표기를 그대로 한 번 써야 다음으로 넘어감(모양만 보고 넘기는 걸 막으려고). 짝 문장은 둘 다
 function afterAnswer(ok, q, extra, noStamp){
   record(q, ok); sess.res.push({q, ok, extra});
   const fb=document.getElementById('fb');
-  fb.innerHTML = (noStamp?'':'<img class="stampfb" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'">') + (extra||'') +
-    '<button type="button" class="btn primary next" id="nx">'+(sess.i+1<sess.qs.length?'다음':'결과 보기')+'</button>';
-  const nx=document.getElementById('nx'); nx.focus();
-  nx.onclick=()=>{ sess.i++; sess.i<sess.qs.length ? renderQ() : renderResult(); };
+  const need = !ok && ['pick','pair','swipe','type'].includes(q.kind) ? (q.kind==='pair' ? [q.it, q.it2] : [q.it]) : [];
+  const fixw = need.length ? '<div class="fixw"><p>바른 표기를 그대로 써 보고 넘어가요.</p>'+need.map((p,i)=>'<label>'+(need.length>1?'<span class="pn">'+['①','②'][i]+'</span>':'')+'<input class="tin" data-i="'+i+'" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="바른 표기 쓰기"></label>').join('')+'</div>' : '';
+  fb.innerHTML = (noStamp?'':'<img class="stampfb" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'">') + (extra||'') + fixw +
+    '<button type="button" class="btn primary next" id="nx"'+(need.length?' disabled':'')+'>'+(sess.i+1<sess.qs.length?'다음':'결과 보기')+'</button>';
+  const nx=document.getElementById('nx');
+  nx.onclick=()=>{ if(nx.disabled) return; sess.i++; sess.i<sess.qs.length ? renderQ() : renderResult(); };
+  if(!need.length){ nx.focus(); return; }
+  const ins=[...fb.querySelectorAll('.fixw input')];
+  const chk=()=>{ let all=true; ins.forEach((inp,i)=>{ const good = normW(inp.value)===normW(need[i].o); inp.classList.toggle('ok', good); if(good) inp.readOnly=true; else all=false; }); if(all){ nx.disabled=false; nx.focus(); } };
+  ins.forEach(inp=>{ inp.oninput=chk; inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); chk(); const nxt=ins.find(x=>!x.readOnly); if(nxt) nxt.focus(); } }; });
+  ins[0].focus();
 }
 function answerOpt(q, k){
   const btns=[...app.querySelectorAll('.opt')]; btns.forEach(b=>b.disabled=true);
@@ -1314,7 +1377,7 @@ function boot(){
 let verTag=null, verAt=0, verStale=false;   // 새 버전 확인용(아래)
 boot();
 // 시험 도구용 손잡이(내 컴퓨터에서 열었을 때만): clinic-dev의 orth_e2e.py가 특정 문제로 세션을 시작하거나 기록을 들여다보는 데 씀
-if(location.hostname==='127.0.0.1'||location.hostname==='localhost') window.__orth={homePool, pairOf, pairUp, scopeP, startSession, BYID, mastCount, kanSum, kstDay, store:()=>store, sess:()=>sess};
+if(location.hostname==='127.0.0.1'||location.hostname==='localhost') window.__orth={homePool, pairOf, pairUp, mkPick, scopeP, todayList, startSession, BYID, mastCount, kanSum, kstDay, hourNo, canStamp, lvl, store:()=>store, sess:()=>sess};
 
 /* ---------- 새 버전 자동 새로고침(트래커처럼): 화면은 저장해 두지 않고, 앱을 다시 열 때마다 파일이 바뀌었는지 확인해 바뀌었으면 다시 읽는다 */
 if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
