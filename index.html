@@ -848,7 +848,7 @@ function vsHTML(){
   const per = store.bs.per==='total' ? 'total' : 'week', key = per==='week'?'w':'t', pk = per==='week'?'pw':'pt';
   const rows = sch.map(x=>({s:x.s, n:x.n, p:x[pk], d:x[key], avg: x.n ? x[key]/vsDiv(x.s, x.n) : 0})).sort((a,b)=>b.avg-a.avg || b.d-a.d);
   const max = Math.max(...rows.map(r=>r.avg), 0.0001);
-  return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'익힌 단어')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
+  return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'누적')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
     '<div class="v'+(sameSchool(r.s, store.school)?' me':'')+'"><span class="s">'+(i+1)+'위 '+esc(r.s)+'</span><span class="m"><i style="width:'+(r.avg/max*100)+'%"></i></span>'+
     '<span class="d">1인당 <b>'+(Math.round(r.avg*10)/10)+'개</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
     '</div><p class="note">학교 전체가 익힌 단어 수를 인원으로 나눈 값이에요. 인원이 많은 학교가 손해 보지 않게, 나누는 인원을 조금 보정했어요.<br>안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
@@ -868,7 +868,7 @@ function boardHTML(){
   else body=rankHTML(b, sc==='all', teach);
   return '<div class="card"><div class="seg">'+
     chips([{id:'school', label:store.school}, {id:'all', label:'전체'}], sc, 'sc', false)+
-    chips([{id:'week', label:'이번 주'}, {id:'total', label:'익힌 단어'}], per, 'per', false)+'</div>'+
+    chips([{id:'week', label:'이번 주'}, {id:'total', label:'누적'}], per, 'per', false)+'</div>'+
     '<p class="note bnote">'+(per==='week' ? '이번 주에 새로 익힌 단어 수예요. 한 단어를 연속 3번 맞히면 익힌 거예요.' : '지금까지 익힌 단어 수예요. 틀리면 그 단어만 다시 익히는 중으로 돌아가요.')+'</p>'+
     body+'</div>'+(teach?teachStatsHTML():statsHTML()+weakHTML());
 }
