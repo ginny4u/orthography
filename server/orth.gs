@@ -22,10 +22,21 @@ var ORTH_TOKEN_DAYS = 30;    // 사이트 로그인 유지 기간(일)
 var ORTH_GHOST_CODE = '여기에 코드'; // 👻 졸업생 입장 코드(기본 개념만, 기록·순위 없음). 실제 값은 Apps Script에만 넣고 저장소에는 올리지 않는다
 var ORTH_DAY_CAP = 1000;     // 하루에 셀 수 있는 최대 정답 수(장난 방지)
 var ORTH_ID = /^[a-z][0-9a-z]{1,23}$/;   // 문제 번호 모양
-var ORTH_COLS = ['studentId', 'school', 'name', 'total', 'week', 'weekN', 'day', 'dayN', 'solved', 'updatedAt', 'dayIds', 'cids', 'wrong', 'st'];
-var ORTH_LIGHT = 10;         // 순위 계산 때 읽는 앞쪽 칸 수(studentId ~ updatedAt)
-var ORTH_NUM = { total: 1, weekN: 1, dayN: 1, solved: 1 };
+// 뒤쪽 8칸(mast ~ v)은 2026-11 '익힘' 개편 때 붙인 칸. 옛 줄은 비어 있어도 읽히고, orthMigrate나 첫 동기화 때 채워진다.
+//   mast: 지금 익힌 단어 수(연속 3번 맞힌 단어) · mast0: 이번 주 시작 때 익힌 수 · fastN/fastC/tn/tsum: 2초 안에 답한 수/그중 맞힌 수/시간 기록 수/걸린 시간 합(초)
+//   run: 단어별 지금 연속 정답 수(0은 안 씀) · fast: 단어별 2초 안에 답한 수 · v: 기록 판(2 = 익힘 개편 뒤)
+var ORTH_COLS = ['studentId', 'school', 'name', 'total', 'week', 'weekN', 'day', 'dayN', 'solved', 'updatedAt', 'dayIds', 'cids', 'wrong', 'st', 'mast', 'mast0', 'fastN', 'fastC', 'tn', 'tsum', 'run', 'fast', 'v'];
+var ORTH_LIGHT = 10;         // 순위 계산 때 읽는 앞쪽 칸 수(studentId ~ updatedAt). 뒤쪽 숫자 칸(mast ~ tsum)은 따로 더 읽음
+var ORTH_RANK_COLS = ['mast', 'mast0', 'fastN', 'fastC', 'tn', 'tsum'];
+var ORTH_NUM = { total: 1, weekN: 1, dayN: 1, solved: 1, mast: 1, mast0: 1, fastN: 1, fastC: 1, tn: 1, tsum: 1, v: 1 };
 var ORTH_LIST = { dayIds: 1, cids: 1, wrong: 1 };
+var ORTH_MAP = { st: 1, run: 1, fast: 1 };
+var ORTH_RUN = 3;            // 연속으로 이만큼 맞히면 '익힘'
+var ORTH_FAST = 2;           // 이 초 안에 답하면 '빠른 답'(찍기 의심)
+var ORTH_LOG_COLS = ['studentId', 'name', 'school', 'at', 'cid', 'n', 'fastN', 'res'];   // orth_log 탭: 동기화 묶음마다 한 줄, res = 문제번호:맞힘:초 …
+var ORTH_LOG_MAX = 20000;    // orth_log 탭이 이보다 길어지면 오래된 줄을 지움
+// 단어 열쇠: 쓱쓱 넘기기(op…)와 바른 표기 고르기(p…)는 같은 단어
+function orthKey_(id) { return /^op/.test(id) ? id.slice(1) : id; }
 
 /* ---------- 날짜(한국 시간) ---------- */
 function orthKst_(iso) { return new Date(Date.parse(iso) + 9 * 3600 * 1000); }
@@ -43,15 +54,31 @@ function orthMask(name) {
 /* ---------- 학생 한 줄 ---------- */
 function orthBlank_(st) {
   return { studentId: st.id, school: st.school, name: st.name, total: 0, week: '', weekN: 0, day: '', dayN: 0, solved: 0,
-    updatedAt: '', dayIds: [], cids: [], wrong: [], st: {} };
+    updatedAt: '', dayIds: [], cids: [], wrong: [], st: {}, mast: 0, mast0: 0, fastN: 0, fastC: 0, tn: 0, tsum: 0, run: {}, fast: {}, v: 2 };
 }
-// 날짜가 바뀌었으면 오늘·이번 주 수를 새로
+// 날짜가 바뀌었으면 오늘·이번 주 수를 새로. 주가 바뀌면 '이번 주 시작 때 익힌 수'도 지금 값으로
 function orthRoll_(row, day, week) {
   if (row.day !== day) { row.day = day; row.dayN = 0; row.dayIds = []; }
-  if (row.week !== week) { row.week = week; row.weekN = 0; }
+  if (row.week !== week) { row.week = week; row.weekN = 0; row.mast0 = Number(row.mast) || 0; }
+}
+function orthMastCount_(run) { var n = 0; Object.keys(run || {}).forEach(function (k) { if (run[k] >= ORTH_RUN) n++; }); return n; }
+// 개편 전 줄(v<2)에 '익힘'을 처음 매김: 그때까지 3번 이상 맞히고 정답률 80% 이상이던 단어는 익힌 것으로(사용자 결정, B안). 순서 기록이 없어 연속 3번은 셀 수 없음
+function orthSeed_(row) {
+  if (Number(row.v) >= 2) return false;
+  var agg = {};
+  Object.keys(row.st || {}).forEach(function (id) {
+    var k = orthKey_(id), s = row.st[id] || [0, 0], a = agg[k] || (agg[k] = [0, 0]);
+    a[0] += Number(s[0]) || 0; a[1] += Number(s[1]) || 0;
+  });
+  var run = {};
+  Object.keys(agg).forEach(function (k) { var c = agg[k][0], w = agg[k][1]; if (c >= 3 && c >= 4 * w) run[k] = ORTH_RUN; });
+  row.run = run; row.fast = {}; row.mast = orthMastCount_(run); row.mast0 = row.mast;
+  row.fastN = 0; row.fastC = 0; row.tn = 0; row.tsum = 0; row.v = 2;
+  return true;
 }
 function orthMine_(row) {
-  return { total: row.total, week: row.week, weekN: row.weekN, day: row.day, dayN: row.dayN, dayIds: row.dayIds.slice(), solved: row.solved };
+  return { total: row.total, week: row.week, weekN: row.weekN, day: row.day, dayN: row.dayN, dayIds: row.dayIds.slice(), solved: row.solved,
+    mast: Number(row.mast) || 0, mast0: Number(row.mast0) || 0 };
 }
 // 시트 한 칸은 5만 자까지라, 문제별 기록이 너무 길어지면 오답 없는 문제부터 덜어 냄(오답 노트는 그대로)
 function orthTrim_(row) {
@@ -145,9 +172,10 @@ function orthBoard_(me, store, env, myRow) {
     if (!b || r.total > b.total) best[r.studentId] = r;
   });
   if (myRow) best[me.id] = myRow;
+  // 순위는 '익힌 단어 수'(mast). 이번 주 = 이번 주에 새로 익힌 수(지금 익힌 수 − 주 시작 때 익힌 수, 0 아래로는 안 내려감)
   var people = Object.keys(best).filter(function (id) { return active[id]; }).map(function (id) {
-    var r = best[id], s = active[id];
-    return { id: id, n: s.name, s: s.school, w: r.week === week ? Number(r.weekN) || 0 : 0, t: Number(r.total) || 0 };
+    var r = best[id], s = active[id], m = Number(r.mast) || 0;
+    return { id: id, n: s.name, s: s.school, w: r.week === week ? Math.max(0, m - (Number(r.mast0) || 0)) : 0, t: m };
   });
   // 학교 이름은 트래커 표기('동양')와 화면 표기('동양고')가 다를 수 있어 '고·여고·고등학교'를 떼고 비교
   var mates = people.filter(function (p) { return orthSchoolKey_(p.s) === orthSchoolKey_(me.school); });
@@ -174,8 +202,9 @@ function orthBoard_(me, store, env, myRow) {
 function orthHomeData_(st, store, env) {
   var row = store.orthGet(st.id) || orthBlank_(st);
   var now = env.now();
+  orthSeed_(row);
   orthRoll_(row, orthDay(now), orthWeek(now));
-  return { mine: orthMine_(row), st: row.st, wrong: row.wrong, board: orthBoard_(st, store, env, row) };
+  return { mine: orthMine_(row), st: row.st, wrong: row.wrong, run: row.run || {}, board: orthBoard_(st, store, env, row) };
 }
 
 /* ---------- 요청 ---------- */
@@ -219,7 +248,7 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     if (a.peek) res.peek = true;
     return res;
   };
-  // 푼 결과 올리기. res = [[문제번호, 1(맞힘)|0(틀림)], …], cid = 묶음 번호(같은 묶음이 두 번 와도 한 번만 반영)
+  // 푼 결과 올리기. res = [[문제번호, 1(맞힘)|0(틀림), 걸린 초(없을 수 있음)], …], cid = 묶음 번호(같은 묶음이 두 번 와도 한 번만 반영)
   CORE_ACTIONS.orthSync = function (req, store, env) {
     var a = orthAuth_(req, store, env), st = a.st;
     if (a.peek) return { ok: true, dup: true, peek: true, mine: orthMine_(store.orthGet(st.id) || orthBlank_(st)), board: orthBoard_(st, store, env, store.orthGet(st.id) || orthBlank_(st)) };   // 보기 전용은 기록 안 함
@@ -228,30 +257,41 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     var now = env.now();
     var row = store.orthGet(st.id) || orthBlank_(st);
     row.school = st.school; row.name = st.name;
+    orthSeed_(row);
     orthRoll_(row, orthDay(now), orthWeek(now));
     var dup = !!cid && row.cids.indexOf(cid) >= 0;
     if (!dup) {
-      var seen = {}, wrong = {};
+      var seen = {}, wrong = {}, run = row.run || {}, fast = row.fast || {}, logRes = [], logFast = 0;
       row.dayIds.forEach(function (id) { seen[id] = 1; });
       row.wrong.forEach(function (id) { wrong[id] = 1; });
       list.forEach(function (x) {
         if (!Array.isArray(x)) return;
         var id = String(x[0]), ok = x[1] === 1 || x[1] === true;
         if (!ORTH_ID.test(id)) return;
-        var s = row.st[id];
+        var sec = Number(x[2]);
+        if (!(sec >= 0 && sec < 3600)) sec = -1;   // 시간이 없거나 이상하면 안 셈
+        var s = row.st[id], k = orthKey_(id);
         if (!Array.isArray(s)) s = row.st[id] = [0, 0];
         row.solved++;
         if (ok) {
           s[0]++; delete wrong[id];
+          run[k] = Math.min(ORTH_RUN, (Number(run[k]) || 0) + 1);   // 연속 정답. ORTH_RUN이 되면 '익힘'
           // 같은 문제는 하루에 한 번만 셈
           if (!seen[id] && row.dayN < ORTH_DAY_CAP) { seen[id] = 1; row.dayIds.push(id); row.dayN++; row.weekN++; row.total++; }
-        } else { s[1]++; wrong[id] = 1; }
+        } else { s[1]++; wrong[id] = 1; delete run[k]; }   // 틀리면 그 단어는 다시 '익히는 중'
+        if (sec >= 0) {
+          row.tn = (Number(row.tn) || 0) + 1; row.tsum = Math.round(((Number(row.tsum) || 0) + sec) * 10) / 10;
+          if (sec < ORTH_FAST) { row.fastN = (Number(row.fastN) || 0) + 1; if (ok) row.fastC = (Number(row.fastC) || 0) + 1; fast[k] = (Number(fast[k]) || 0) + 1; logFast++; }
+        }
+        logRes.push(id + ':' + (ok ? 1 : 0) + (sec >= 0 ? ':' + sec : ''));
       });
       row.wrong = Object.keys(wrong);
+      row.run = run; row.fast = fast; row.mast = orthMastCount_(run);
       if (cid) { row.cids.push(cid); if (row.cids.length > 30) row.cids = row.cids.slice(-30); }
       row.updatedAt = now;
       orthTrim_(row);
       store.orthPut(row);
+      if (store.orthLog && logRes.length) { try { store.orthLog([st.id, st.name, st.school, now, cid, logRes.length, logFast, logRes.join(' ')]); } catch (e) { } }
     }
     return { ok: true, dup: dup, mine: orthMine_(row), board: orthBoard_(st, store, env, row) };
   };
@@ -281,6 +321,20 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     orthRequireAdmin_(req, store, env);
     return { ok: true, board: orthBoard_({ id: '', school: String(req.school || '') }, store, env, null) };
   };
+  // 선생님 페이지: 고른 학교 학생별 표(익힌 단어 수, 푼 수, 2초 안에 답한 비율, 마지막 활동). 기록 없는 재원생도 0으로 넣음
+  CORE_ACTIONS.orthStats = function (req, store, env) {
+    orthRequireAdmin_(req, store, env);
+    var school = String(req.school || ''), week = orthWeek(env.now());
+    var rows = {};
+    store.orthRows().forEach(function (r) { var b = rows[r.studentId]; if (!b || r.total > b.total) rows[r.studentId] = r; });
+    var list = store.students().filter(function (s) { return s.status === 'active' && orthSchoolKey_(s.school) === orthSchoolKey_(school); }).map(function (s) {
+      var r = rows[s.id] || {}, m = Number(r.mast) || 0, tn = Number(r.tn) || 0;
+      return { id: s.id, n: s.name, mast: m, wk: r.week === week ? Math.max(0, m - (Number(r.mast0) || 0)) : 0, total: Number(r.total) || 0, solved: Number(r.solved) || 0,
+        tn: tn, fastN: Number(r.fastN) || 0, fastC: Number(r.fastC) || 0, avg: tn ? Math.round((Number(r.tsum) || 0) / tn * 10) / 10 : 0, at: r.updatedAt || '', old: !!r.studentId && Number(r.v || 0) < 2 };
+    });
+    list.sort(function (a, b) { return b.mast - a.mast || (a.n < b.n ? -1 : a.n > b.n ? 1 : 0); });
+    return { ok: true, week: week, list: list };
+  };
   CORE_ACTIONS.orthLogout = function (req, store, env) {
     var t = String(req.token || '');
     if (t && (t.charAt(0) === 'o' || t.charAt(0) === 'a') && env.propDel) env.propDel('ot:' + t);
@@ -298,8 +352,33 @@ function orthSheet_() {
     sh.getRange(1, 1, 1, ORTH_COLS.length).setValues([ORTH_COLS]).setFontWeight('bold');
     sh.setFrozenRows(1);
     sh.getRange(1, 1, sh.getMaxRows(), ORTH_COLS.length).setNumberFormat('@'); // 날짜·숫자 자동 변환 막기
+  } else if (sh.getLastColumn() < ORTH_COLS.length || String(sh.getRange(1, ORTH_COLS.length).getValue()) !== ORTH_COLS[ORTH_COLS.length - 1]) {
+    // 개편으로 늘어난 칸의 제목을 붙임(옛 줄의 그 칸은 빈 채로 두고, 읽을 때 0·{}로 봄)
+    var from = 1;
+    while (from <= ORTH_COLS.length && String(sh.getRange(1, from).getValue()) === ORTH_COLS[from - 1]) from++;
+    if (from <= ORTH_COLS.length) {
+      sh.getRange(1, from, 1, ORTH_COLS.length - from + 1).setValues([ORTH_COLS.slice(from - 1)]).setFontWeight('bold');
+      sh.getRange(1, from, sh.getMaxRows(), ORTH_COLS.length - from + 1).setNumberFormat('@');
+    }
   }
   return sh;
+}
+// 동기화 묶음 기록 탭(분석용). 없으면 만들고, 너무 길어지면 앞쪽을 지움
+function orthLogSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName('orth_log');
+  if (!sh) {
+    sh = ss.insertSheet('orth_log');
+    sh.getRange(1, 1, 1, ORTH_LOG_COLS.length).setValues([ORTH_LOG_COLS]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, sh.getMaxRows(), ORTH_LOG_COLS.length).setNumberFormat('@');
+  }
+  return sh;
+}
+function orthLogPut_(row) {
+  var sh = orthLogSheet_();
+  sh.appendRow(row.map(function (v) { return v === undefined || v === null ? '' : String(v); }));
+  var last = sh.getLastRow();
+  if (last - 1 > ORTH_LOG_MAX) sh.deleteRows(2, Math.min(2000, last - 1 - ORTH_LOG_MAX));
 }
 function orthParse_(r) {
   var o = {};
@@ -310,7 +389,7 @@ function orthParse_(r) {
     if (v === null || v === undefined) v = '';
     if (ORTH_NUM[c]) v = Number(v) || 0;
     else if (ORTH_LIST[c]) v = String(v) ? String(v).split(',') : [];
-    else if (c === 'st') { try { v = v ? JSON.parse(v) : {}; } catch (e) { v = {}; } if (!v || typeof v !== 'object') v = {}; }
+    else if (ORTH_MAP[c]) { try { v = v ? JSON.parse(v) : {}; } catch (e) { v = {}; } if (!v || typeof v !== 'object') v = {}; }
     else v = String(v);
     o[c] = v;
   });
@@ -320,15 +399,30 @@ function orthOut_(o) {
   return ORTH_COLS.map(function (c) {
     var v = o[c];
     if (ORTH_LIST[c]) return (v || []).join(',');
-    if (c === 'st') return JSON.stringify(v || {});
+    if (ORTH_MAP[c]) return JSON.stringify(v || {});
     return v === undefined || v === null ? '' : String(v);
   });
 }
+// 순위·선생님 표용 가벼운 읽기: 앞쪽 칸(studentId ~ updatedAt)과 뒤쪽 숫자 칸(mast ~ tsum)만. 문제별 기록(st·run·fast)은 안 읽음
 function orthSheetRows_() {
   var sh = orthSheet_(), last = sh.getLastRow();
   if (last < 2) return [];
-  return sh.getRange(2, 1, last - 1, ORTH_LIGHT).getValues()
-    .filter(function (r) { return String(r[0]) !== ''; }).map(orthParse_);
+  var a = sh.getRange(2, 1, last - 1, ORTH_LIGHT).getValues();
+  var c0 = ORTH_COLS.indexOf(ORTH_RANK_COLS[0]) + 1, cn = ORTH_RANK_COLS.length;
+  var b = sh.getLastColumn() >= c0 ? sh.getRange(2, c0, last - 1, cn).getValues() : a.map(function () { return []; });
+  var vcol = ORTH_COLS.indexOf('v') + 1;
+  var vv = sh.getLastColumn() >= vcol ? sh.getRange(2, vcol, last - 1, 1).getValues() : a.map(function () { return ['']; });
+  var out = [];
+  for (var i = 0; i < a.length; i++) {
+    if (String(a[i][0]) === '') continue;
+    var r = a[i].slice();
+    while (r.length < c0 - 1) r.push('');
+    for (var j = 0; j < cn; j++) r.push(b[i] && b[i][j] !== undefined ? b[i][j] : '');
+    while (r.length < vcol - 1) r.push('');
+    r.push(vv[i] ? vv[i][0] : '');
+    out.push(orthParse_(r));
+  }
+  return out;
 }
 function orthSheetGet_(id) {
   var sh = orthSheet_(), last = sh.getLastRow();
@@ -352,7 +446,7 @@ if (typeof makeStore_ === 'function' && !makeStore_.orthWrapped) {
   var orthBaseStore_ = makeStore_;
   makeStore_ = function () {
     var s = orthBaseStore_();
-    if (!s.orthRows) { s.orthRows = orthSheetRows_; s.orthGet = orthSheetGet_; s.orthPut = orthSheetPut_; }
+    if (!s.orthRows) { s.orthRows = orthSheetRows_; s.orthGet = orthSheetGet_; s.orthPut = orthSheetPut_; s.orthLog = orthLogPut_; }
     return s;
   };
   makeStore_.orthWrapped = true;
@@ -371,6 +465,22 @@ if (typeof makeEnv_ === 'function' && !makeEnv_.orthWrapped) {
   makeEnv_.orthWrapped = true;
 }
 
+/* ===== 개편 적용: 함수 목록에서 orthMigrate를 고르고 ▷ 실행(한 번만) =====
+ * 옛 줄(v가 2가 아닌 줄)마다 '익힘'을 처음 매겨 저장합니다(3번 이상 맞히고 정답률 80% 이상인 단어). 다시 실행해도 이미 매긴 줄은 건드리지 않습니다.
+ * 안 돌려도 학생이 다음에 문제를 풀면 그때 자기 줄이 매겨지지만, 그 전까지 순위표에는 0으로 보입니다.
+ */
+function orthMigrate() {
+  var sh = orthSheet_(), last = sh.getLastRow(), done = 0, skip = 0;
+  for (var i = 2; i <= last; i++) {
+    var o = orthParse_(sh.getRange(i, 1, 1, ORTH_COLS.length).getValues()[0]);
+    if (!o.studentId) continue;
+    o._row = i;
+    if (orthSeed_(o)) { orthSheetPut_(o); done++; } else skip++;
+  }
+  Logger.log('익힘 처음 매김: ' + done + '줄 적용, ' + skip + '줄은 이미 되어 있음. 이제 orthCheck를 실행해 보세요.');
+  return done;
+}
+
 /* ===== 점검 도구: 함수 목록에서 orthCheck를 고르고 ▷ 실행 → '실행 로그' 확인 =====
  * 실제 시트에는 orth 탭(없으면)만 만들고, 학생 기록은 쓰지 않습니다. 채점·순위는 메모리 안에서 가짜 학생으로 시험합니다.
  */
@@ -381,7 +491,7 @@ function orthCheck() {
   function log() { Logger.log(out.join('\n') + '\n\n' + (bad ? '문제 ' + bad + '개 — 이 로그를 그대로 복사해서 Claude에게 보내 주세요.' : '모두 정상입니다. 이제 배포 → 배포 관리 → 새 버전으로 배포하면 됩니다.')); }
 
   if (typeof CORE_ACTIONS === 'undefined' || typeof coreHandle !== 'function') { ng('Code.gs의 공통 로직을 찾지 못했습니다. orth 파일이 Code.gs보다 아래에 있는지 확인해 주세요.'); return log(); }
-  var need = ['orthLookup', 'orthGhost', 'orthTeachLogin', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthLogout'];
+  var need = ['orthLookup', 'orthGhost', 'orthTeachLogin', 'orthLogin', 'orthChangePw', 'orthHome', 'orthSync', 'orthBoard', 'orthStats', 'orthLogout'];
   var miss = need.filter(function (a) { return typeof CORE_ACTIONS[a] !== 'function'; });
   if (miss.length) ng('맞춤법 요청이 없습니다: ' + miss.join(', ')); else ok('맞춤법 요청 ' + need.length + '개 추가됨');
   if (typeof CORE_VERSION !== 'undefined') ok('트래커 버전 그대로 (version ' + CORE_VERSION + ')');
@@ -394,7 +504,12 @@ function orthCheck() {
     if (head.join() === ORTH_COLS.join()) ok('시트 orth 탭 준비됨 (지금 ' + Math.max(0, sh.getLastRow() - 1) + '명 기록)');
     else ng('orth 탭 첫 줄이 다릅니다: ' + head.join(', '));
     var real = makeStore_();
-    if (real.orthRows && real.orthGet && real.orthPut) { real.orthRows(); ok('orth 탭 읽기 정상'); }
+    if (real.orthRows && real.orthGet && real.orthPut) {
+      var rr = real.orthRows(), oldN = rr.filter(function (r) { return Number(r.v || 0) < 2; }).length;
+      ok('orth 탭 읽기 정상');
+      if (oldN) ng('익힘을 아직 안 매긴 줄이 ' + oldN + '개 있습니다. 함수 목록에서 orthMigrate를 한 번 실행해 주세요.'); else ok('익힘 매김 완료(모든 줄 v=2)');
+      if (real.orthLog) { orthLogSheet_(); ok('orth_log 탭 준비됨'); }
+    }
     else ng('저장소에 orth 읽기·쓰기가 붙지 않았습니다.');
     if (real.deleteSub) ok('무한선지(omr) 기능도 그대로'); else out.push('· omr 파일이 없거나 orth보다 아래에 있음(트래커에 영향 없으면 괜찮음)');
     var en = makeEnv_();
@@ -409,7 +524,7 @@ function orthCheck() {
 // 시트를 쓰지 않는 가짜 저장소로 처음부터 끝까지 시험
 function orthSelfTest_() {
   var dc = function (x) { return JSON.parse(JSON.stringify(x)); };
-  var db = { students: [], sets: [], items: [], subs: [], checks: [], orth: [] }, cache = {}, props = {}, n = 0;
+  var db = { students: [], sets: [], items: [], subs: [], checks: [], orth: [], log: [] }, cache = {}, props = {}, n = 0;
   var T = Date.UTC(2026, 0, 6, 15, 0, 0);   // 2026-01-07(수) 0시, 한국 시간
   var up = function (list, o, f) { for (var i = 0; i < list.length; i++) if (f(list[i])) { list[i] = dc(o); return; } list.push(dc(o)); };
   var mem = {
@@ -421,7 +536,8 @@ function orthSelfTest_() {
     subs: function () { return dc(db.subs); }, putSub: function (s) { up(db.subs, s, function (r) { return r.setId === s.setId && r.studentId === s.studentId; }); },
     checks: function () { return dc(db.checks); }, putCheck: function (c) { up(db.checks, c, function (r) { return r.setId === c.setId && r.studentId === c.studentId; }); },
     deleteSub: function (a, b) { db.subs = db.subs.filter(function (r) { return !(r.setId === a && r.studentId === b); }); },
-    orthRows: function () { return db.orth.map(function (r) { var o = {}; ORTH_COLS.slice(0, ORTH_LIGHT).forEach(function (c) { o[c] = r[c]; }); return dc(o); }); },
+    orthRows: function () { return db.orth.map(function (r) { var o = {}; ORTH_COLS.slice(0, ORTH_LIGHT).concat(ORTH_RANK_COLS, ['v']).forEach(function (c) { o[c] = r[c]; }); return dc(o); }); },
+    orthLog: function (row) { db.log.push(row); },
     orthGet: function (id) { var r = db.orth.filter(function (x) { return x.studentId === id; })[0]; return r ? dc(r) : null; },
     orthPut: function (o) { up(db.orth, o, function (r) { return r.studentId === o.studentId; }); }
   };
@@ -469,28 +585,59 @@ function orthSelfTest_() {
   must(s2.ok && s2.mine.dayN === 3, '오답을 맞힘');
   must(P({ action: 'orthHome', token: tg }).orth.wrong.length === 0, '맞힌 문제가 오답 노트에 남음');
 
+  // 익힘(연속 3번)과 걸린 시간: pa1 3번째 정답 → 익힘, pa2·pa3도 2번씩 더 → 셋 다 익힘. 쓱쓱(opa2)도 같은 단어로 셈. 2초 안 답은 fast로
+  var s2b = P({ action: 'orthSync', token: tg, cid: 'c2b', res: [['pa1', 1, 4.2], ['opa2', 1, 1.1], ['pa2', 1, 3], ['pa3', 1, 0.9], ['pa3', 1, 7], ['pa9', 0, 1.5], ['pa9', 1]] });
+  must(s2b.ok && s2b.mine.mast === 3 && s2b.mine.solved === 12, '익힘 수: ' + JSON.stringify(s2b.mine));
+  var hr = P({ action: 'orthHome', token: tg }).orth;
+  must(hr.run && hr.run.pa1 === 3 && hr.run.pa2 === 3 && hr.run.pa3 === 3 && hr.run.pa9 === 1 && hr.st.opa2.join() === '1,0', '단어별 연속 정답: ' + JSON.stringify(hr.run));
+  must(db.orth[0].tn === 6 && db.orth[0].fastN === 3 && db.orth[0].fastC === 2 && Math.abs(db.orth[0].tsum - 17.7) < 0.01 && db.orth[0].fast.pa2 === 1 && db.orth[0].fast.pa3 === 1 && db.orth[0].fast.pa9 === 1, '걸린 시간 기록: ' + JSON.stringify([db.orth[0].tn, db.orth[0].fastN, db.orth[0].tsum, db.orth[0].fast]));
+  must(db.log.length === 3 && db.log[2][4] === 'c2b' && db.log[2][5] === 7 && db.log[2][6] === 3 && /^pa1:1:4\.2 opa2:1:1\.1 /.test(db.log[2][7]) && / pa9:1$/.test(db.log[2][7]), '동기화 기록(orth_log): ' + JSON.stringify(db.log[2]));
+  // 틀리면 그 단어만 다시 '익히는 중'
+  var s2c = P({ action: 'orthSync', token: tg, cid: 'c2c', res: [['opa1', 0, 2.5]] });
+  must(s2c.mine.mast === 2 && !P({ action: 'orthHome', token: tg }).orth.run.pa1, '틀리면 익힘이 풀림: ' + JSON.stringify(s2c.mine));
+  var s2d = P({ action: 'orthSync', token: tg, cid: 'c2d', res: [['pa1', 1], ['pa1', 1], ['pa1', 1]] });
+  must(s2d.mine.mast === 3, '다시 연속 3번이면 익힘');
+
   // 트래커 토큰으로 들어오면 사이트 토큰을 새로 줌
   var nt =P({ action: 'login', id: id('나나나'), pw: '0000' }).token;
   must(P({ action: 'changePw', token: nt, newPw: '5678' }).ok, '나나나 비밀번호 변경');
   var hn = P({ action: 'orthHome', token: nt });
   must(hn.ok && hn.otoken, '트래커 토큰으로 입장: ' + hn.error);
   var tn = hn.otoken;
-  P({ action: 'orthSync', token: tn, cid: 'n1', res: [['pa1', 1], ['pa2', 1], ['pa3', 1], ['pa4', 1], ['pa5', 1]] });
+  var x3 = function (ids) { var o = []; ids.forEach(function (i) { o.push([i, 1, 3], [i, 1, 3], [i, 1, 3]); }); return o; };
+  P({ action: 'orthSync', token: tn, cid: 'n1', res: x3(['pa1', 'pa2', 'pa3', 'pa4', 'pa5']) });
 
   var td = P({ action: 'orthLogin', id: id('다다다'), pw: '0000' }).token;
   var td2 = P({ action: 'orthChangePw', token: td, newPw: '4321' }).otoken;
-  P({ action: 'orthSync', token: td2, cid: 'd1', res: [['pa1', 1], ['pa2', 1], ['pa3', 1], ['pa4', 1], ['pa5', 1], ['pa6', 1], ['pa7', 1]] });
+  P({ action: 'orthSync', token: td2, cid: 'd1', res: x3(['pa1', 'pa2', 'pa3', 'pa4', 'pa5', 'pa6', 'pa7']) });
+  // 개편 전 줄(v 없음): 라라라에게 옛 기록을 심어 두면 홈에서 B안대로 익힘이 매겨짐(3번 이상 맞히고 80% 이상)
+  db.orth.push({ studentId: id('라라라'), school: '가고', name: '라라라', total: 9, week: '', weekN: 0, day: '', dayN: 0, solved: 20, updatedAt: '', dayIds: [], cids: [],
+    wrong: ['pb3'], st: { pb1: [5, 0], pb2: [4, 1], opb2: [2, 0], pb3: [3, 3], pb4: [2, 0] } });
+  var lr = P({ action: 'orthLogin', id: id('라라라'), pw: '0000' });
+  var lr2 = P({ action: 'orthChangePw', token: lr.token, newPw: '1111' });
+  must(lr2.ok && lr2.orth.mine.mast === 2 && lr2.orth.run.pb1 === 3 && lr2.orth.run.pb2 === 3 && !lr2.orth.run.pb3 && !lr2.orth.run.pb4, '옛 기록 익힘 매김: ' + JSON.stringify(lr2.orth && [lr2.orth.mine, lr2.orth.run]));
+  must(db.orth.filter(function (r) { return r.name === '라라라'; })[0].v === undefined, '홈만 봤을 때는 시트를 안 고침');
+  P({ action: 'orthSync', token: lr2.otoken, cid: 'r1', res: [['pb4', 1, 2], ['pb4', 1, 2], ['opb4', 1, 2]] });   // 옛 기록 2번 + 지금 3번 연속 → 익힘
+  var lrow = db.orth.filter(function (r) { return r.name === '라라라'; })[0];
+  must(lrow.v === 2 && lrow.mast === 3 && lrow.mast0 === 2 && lrow.run.pb4 === 3 && lrow.st.pb4.join() === '4,0' && lrow.st.opb4.join() === '1,0', '옛 기록 매김 뒤 저장: ' + JSON.stringify([lrow.v, lrow.mast, lrow.mast0, lrow.run]));
 
   var b = P({ action: 'orthHome', token: tg }).orth.board;
-  must(b.school.week.top.length === 2 && b.school.week.top[0].n[0][0] === '나나나' && b.school.week.top[0].d === 5, '학교 순위 1위');
+  must(b.school.week.top.length === 3 && b.school.week.top[0].n[0][0] === '나나나' && b.school.week.top[0].d === 5, '학교 순위 1위(이번 주 새로 익힌 수): ' + JSON.stringify(b.school.week.top));
   must(b.school.week.me.r === 2 && b.school.week.me.up.r === 1 && b.school.week.me.up.gap === 2, '학교 순위 내 자리: ' + JSON.stringify(b.school.week.me));
-  must(b.all.week.top[0].n[0].join() === '다다다,나고' && b.all.week.me.r === 3 && b.all.week.of === 3, '전체 순위: ' + JSON.stringify(b.all.week));
+  must(b.school.total.top[0].n[0][0] === '나나나' && b.school.total.top[0].d === 5 && b.school.total.top[1].d === 3 && b.school.total.top[1].n.length === 2, '익힌 단어 누적 순위(가가가·라라라 3개 공동): ' + JSON.stringify(b.school.total.top));
+  must(b.all.week.top[0].n[0].join() === '다다다,나고' && b.all.week.me.r === 3 && b.all.week.of === 4, '전체 순위: ' + JSON.stringify(b.all.week));
   must(b.school.week.top.every(function (g) { return g.n.every(function (x) { return x[0] !== '다다다'; }); }), '다른 학교가 학교 순위에 섞임');
   var ga = b.sch.filter(function (x) { return x.s === '가고'; })[0], na = b.sch.filter(function (x) { return x.s === '나고'; })[0];
-  must(ga && ga.n === 3 && ga.pw === 2 && ga.w === 8 && na && na.n === 1 && na.w === 7, '학교 대항 합계: ' + JSON.stringify(b.sch));
+  must(ga && ga.n === 3 && ga.pw === 3 && ga.w === 9 && ga.t === 11 && na && na.n === 1 && na.w === 7, '학교 대항 합계: ' + JSON.stringify(b.sch));
+  // 선생님 표
+  var ts = P({ action: 'orthStats', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
+  must(ts.ok && ts.list.length === 3 && ts.list[0].n === '나나나' && ts.list[0].mast === 5 && ts.list[0].tn === 15 && ts.list[0].fastN === 0, '선생님 표: ' + JSON.stringify(ts.list));
+  var tsg = ts.list.filter(function (x) { return x.n === '가가가'; })[0];
+  must(tsg.mast === 3 && tsg.wk === 3 && tsg.solved === 16 && tsg.tn === 7 && tsg.fastN === 3 && tsg.avg === 2.9 && !tsg.old, '선생님 표 가가가: ' + JSON.stringify(tsg));
+  must(!P({ action: 'orthStats', token: tg, school: '가고' }).ok, '학생 토큰으로 선생님 표가 열림');
   // 선생님 페이지 순위표: 선생님 비밀번호로만
   var tb = P({ action: 'orthBoard', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, school: '가고' });
-  must(tb.ok && tb.board.school.week.top[0].n[0][0] === '나나나' && tb.board.school.week.of === 2 && !tb.board.school.week.me && tb.board.all.week.of === 3, '선생님 순위표: ' + JSON.stringify(tb.board || tb.error));
+  must(tb.ok && tb.board.school.week.top[0].n[0][0] === '나나나' && tb.board.school.week.of === 3 && !tb.board.school.week.me && tb.board.all.week.of === 4, '선생님 순위표: ' + JSON.stringify(tb.board || tb.error));
   must(!P({ action: 'orthBoard', token: tg, school: '가고' }).ok, '학생 토큰으로 선생님 순위표가 열림');
   must(P({ action: 'orthGhost', code: ORTH_GHOST_CODE }).ok && !P({ action: 'orthGhost', code: 'x' }).ok, '졸업생 코드(맨 위 ORTH_GHOST_CODE를 정해 주세요)');
   var tl = P({ action: 'orthTeachLogin', pw: 'orth-check' });
@@ -501,16 +648,16 @@ function orthSelfTest_() {
 
   // 다음 날: 같은 문제를 다시 맞히면 또 셈
   T += day;
-  var s3 = P({ action: 'orthSync', token: tg, cid: 'c3', res: [['pa1', 1], ['pa2', 1], ['pa3', 1]] });
-  must(s3.mine.dayN === 3 && s3.mine.total === 6 && s3.mine.weekN === 6, '다음 날 다시 셈: ' + JSON.stringify(s3.mine));
+  var s3 = P({ action: 'orthSync', token: tg, cid: 'c3', res: [['pa1', 1], ['pa2', 1], ['pa3', 1], ['pa5', 1], ['pa5', 1], ['pa5', 1], ['pa6', 1], ['pa6', 1], ['pa6', 1], ['pa7', 1], ['pa7', 1], ['pa7', 1]] });
+  must(s3.mine.dayN === 6 && s3.mine.total === 11 && s3.mine.weekN === 11 && s3.mine.mast === 6, '다음 날 다시 셈: ' + JSON.stringify(s3.mine));
   var b2 = s3.board.school.week;
   must(b2.me.r === 1 && b2.me.lead === 1, '1위 앞선 개수: ' + JSON.stringify(b2.me));
 
   // 다음 주 월요일: 이번 주는 0부터, 누적은 그대로
   T = Date.UTC(2026, 0, 11, 15, 30, 0);
   var h2 = P({ action: 'orthHome', token: tg });
-  must(h2.orth.mine.weekN === 0 && h2.orth.mine.total === 6 && h2.orth.mine.dayN === 0, '주가 바뀜: ' + JSON.stringify(h2.orth.mine));
-  must(h2.orth.board.school.week.top.length === 0 && h2.orth.board.school.total.top[0].d === 6, '주가 바뀐 순위');
+  must(h2.orth.mine.weekN === 0 && h2.orth.mine.total === 11 && h2.orth.mine.dayN === 0 && h2.orth.mine.mast === 6 && h2.orth.mine.mast0 === 6, '주가 바뀜: ' + JSON.stringify(h2.orth.mine));
+  must(h2.orth.board.school.week.top.length === 0 && h2.orth.board.school.total.top[0].d === 6, '주가 바뀐 순위: ' + JSON.stringify(h2.orth.board.school));
 
   // 퇴원하면 순위에서 빠지고 로그인도 막힘
   must(P({ action: 'updateStudent', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, id: id('나나나'), op: 'leave' }).ok, '퇴원 처리');

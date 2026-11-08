@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 학교별 시험 범위: 교과서(미래엔·동아 공통국어2 3단원 02) / 프린트 / 올림포스(올포유)
+# 학교별 시험 범위: 교과서(미래엔·동아 공통국어2 3단원 02) / 프린트 / 올림포스(올포유) / 클리닉(clinic_words.py)
 # 각 범위 = 조항 목록(arts: 그 조항의 공통 문제 전부 포함) + 그 자료에서 뽑은 문제(picks, blanks)
 # 문제 형식은 orth_data.py와 같고, l(어느 자료 몇 쪽)이 더 붙는다.
 # P(조항, 자료 위치, 문장('□' 자리), 정답, 오답, 해설 한 줄[, nb=True: 근거 조항 문제로는 안 냄])
@@ -434,11 +434,34 @@ for _s in (MIRAE, DONGA, GONGHANG_PR, HANSEO_PR, MYUNGDUK_OL, MYUNGDUK_PR):
         if _p['a'] not in _s['arts']:
             _p['nb'] = 1   # 그 자료의 조항 범위 밖(곁들여 나온 낱말) → 바른 표기로만 냄
 
-SRC = dict(mirae=MIRAE, donga=DONGA, donga_dy=DONGA_DY, gh=GONGHANG_PR, hs=HANSEO_PR, md=MYUNGDUK_OL, mdp=MYUNGDUK_PR)
+# 클리닉: 그 학교 클리닉(무한선지)에 나온 예시 낱말만(tools/clinic_words.py). arts는 비워 둠(기본 개념 문제를 끌어오지 않음)
+import clinic_words as _cw
+from orth_data import EZ as _EZ
+
+
+def _clinic(title, L):
+    picks = []
+    for p in L:
+        if p['x'] in _EZ:
+            print('  클리닉에서 뺌(EZ):', p['o'], p['x'])
+            continue
+        q = {k: v for k, v in p.items() if k != 'd'}   # d(틀린 표기를 클리닉 밖에서 만듦)는 검수용 표시라 화면엔 안 보냄
+        q['nb'] = 1
+        picks.append(q)
+    return dict(title=title, arts=[], picks=picks, blanks=[])
+
+
+CL_TITLE = "매주 수업에서 다룬 낱말이 더해져요(지금 10.4주까지)"
+DY_CL = _clinic(CL_TITLE, _cw.DY)
+GH_CL = _clinic(CL_TITLE, _cw.GH)
+MD_CL = _clinic(CL_TITLE, _cw.MD)
+
+SRC = dict(mirae=MIRAE, donga=DONGA, donga_dy=DONGA_DY, gh=GONGHANG_PR, hs=HANSEO_PR, md=MYUNGDUK_OL, mdp=MYUNGDUK_PR,
+           dy_cl=DY_CL, gh_cl=GH_CL, md_cl=MD_CL)
 SCHOOLS = {
-    '공항고': dict(tb='mirae', pr='gh'),
-    '동양고': dict(tb='donga_dy'),
-    '명덕고': dict(tb='donga', pr='mdp', ol='md', excl=[30]),   # 명덕고 시험 범위에서 사이시옷(제30항) 빠짐 → 모든 자료에서 제외
+    '공항고': dict(tb='mirae', pr='gh', cl='gh_cl'),
+    '동양고': dict(tb='donga_dy', cl='dy_cl'),
+    '명덕고': dict(tb='donga', pr='mdp', ol='md', cl='md_cl', excl=[30]),   # 명덕고 시험 범위에서 사이시옷(제30항) 빠짐 → 모든 자료에서 제외
     '한서고': dict(tb='mirae', pr='hs'),
     '경복여고': dict(tb='donga'),
 }

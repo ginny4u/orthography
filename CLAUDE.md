@@ -8,7 +8,7 @@
 - `index.html` 하나에 화면·스타일·코드가 다 있다. 고친 뒤에는 문법 검사(아래)부터.
 - 데이터는 **직접 고치지 않는다.** `tools/*.py`가 원본이고 아래 명령으로 다시 만든다.
   - `python3 tools/orth_data.py data.js` — 기본 개념(조항 카드, 바른 표기 문제, 한자 짜임 `tools/hanja.py`)
-  - `python3 tools/school_data.py school.js` — 학교별 교과서·프린트·올림포스 범위(맨 아래 `SCHOOLS` 표)
+  - `python3 tools/school_data.py school.js` — 학교별 교과서·프린트·올림포스·클리닉 범위(맨 아래 `SCHOOLS` 표). 클리닉 낱말은 `tools/clinic_words.py`(클리닉 무한선지에 나온 예시 낱말만, `ns`=쓱쓱에서 뺄 뜻 짝)
   - `python3 tools/spot_data.py spot.js` — 틀린 곳 찾기 대화
   - 세 파일은 `tools/pack.py`로 싸여 있어(복제 방지) 열어 봐도 안 읽힌다. 화면의 `ORTH_UNPACK`이 푼다.
   - 만들 때마다 `tools/stamp.py`가 index.html의 `src="data.js?v=해시"`를 바꿔 옛 파일 캐시를 막는다.
@@ -49,5 +49,5 @@
 - 커밋은 main에 바로, 푸시하면 GitHub Pages가 1~2분 안에 반영.
 
 ## 남은 일
-- 동양고·경복여고 프린트, 경복여고 올림포스는 자료를 받으면 넣는다(지금은 '준비 중').
+- 동양고·경복여고 프린트, 경복여고 올림포스는 자료를 받으면 넣는다(지금은 '준비 중'). 클리닉은 동양·공항·명덕 10.4주까지, 경복·한서는 '준비 중'.
 - 문항 원본(`tools/`)이 공개 저장소에 있어 그대로 읽힌다. 저장소 비공개 전환 여부는 사용자가 아직 정하지 않음.
