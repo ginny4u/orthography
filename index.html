@@ -353,6 +353,7 @@ const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p; BYID['o'+p.id
 // 뜻으로 가르는 짝(pairs.js): 바른 표기|다른 표기 → [바른 쪽 뜻, 다른 쪽 뜻]. 이 문제는 뜻을 먼저 고르고, 쓱쓱 넘기기에서는 뺀다
 const PAIRS = window.ORTH_PAIRS || {};
 const pairOf = it => (it && it.o && it.x) ? PAIRS[it.o+'|'+it.x] : undefined;
+const MEANING_STEP = false;   // 뜻 먼저 고르기 단계: 효과가 없다고 보고 끔(2026-11-08 사용자 결정). 짝은 쓱쓱에서 빼는 데만 씀
 // 단어 열쇠: 쓱쓱(o+번호)과 바른 표기 고르기(번호)는 같은 단어(서버와 같은 기준)
 const wordKey = id => /^op/.test(id) ? id.slice(1) : id;
 const RUN_N = 3;   // 연속으로 이만큼 맞히면 '익힘'
@@ -1025,7 +1026,7 @@ function renderQ(){
   view='q';
   const q = sess.qs[sess.i], n = sess.qs.length, it=q.it;
   let body='';
-  const pr = q.kind==='pick' ? pairOf(it) : null, mstep = !!pr && !q.mdone;   // 뜻으로 가르는 짝: 뜻을 먼저 고름
+  const pr = MEANING_STEP && q.kind==='pick' ? pairOf(it) : null, mstep = !!pr && !q.mdone;   // 뜻으로 가르는 짝: 뜻을 먼저 고름(지금은 꺼 둠)
   if(mstep){
     if(!q.mopts) q.mopts = shuffle([pr[0], pr[1]]);
     body='<p class="qsent" id="qs">'+sentFilled(it,'blank')+'</p><p class="mnote">먼저, 이 문장에서 □의 뜻을 고르세요.</p>'+
