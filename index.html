@@ -363,7 +363,7 @@ const wordKey = id => /^op/.test(id) ? id.slice(1) : id;
 const RUN_N = 3;   // 서로 다른 날 연속으로 이만큼 맞히면 '익힘'. 같은 단어는 하루에 한 번만 셈(서버 orth.gs와 같은 규칙)
 const kstDay = () => Math.floor((Date.now()+9*36e5)/864e5);   // 날짜 번호(한국 시간). 서버 orthDayNo_와 같은 식
 const mastCount = () => Object.keys(store.run||{}).filter(k=>store.run[k]>=RUN_N).length;
-const kanSum = () => Object.keys(store.run||{}).reduce((n,k)=>n+Math.min(RUN_N, +store.run[k]||0), 0);   // 익힘 칸 합(단어마다 0~3칸). '이번 주' 순위는 이번 주에 오른 칸
+const kanSum = () => Object.keys(store.run||{}).reduce((n,k)=>n+Math.min(RUN_N, +store.run[k]||0), 0);   // 도장 합(단어마다 0~3개, 서버 kan). '이번 주' 순위는 이번 주에 모은 도장
 const SPOTS = (window.ORTH_SPOT||[]).map(it=>{
   const txt = it.t.map(b=>b[1].map(p=>typeof p==='string'?p:p.x).join('')).join('|');
   return Object.assign({id:'s'+h(txt), a:it.arts[0]}, it);
@@ -806,8 +806,8 @@ function weakList(){
 }
 function weakHTML(){
   const L=weakList(); if(!L.length) return '';
-  return '<h2 class="sec">아직 못 익힌 단어</h2><div class="card"><ul class="weak">'+L.map(x=>'<li><b>'+esc(x.q.it.o)+'</b><small>제'+x.q.it.a+'항 · '+x.c+'번 맞고 '+x.w+'번 틀림</small></li>').join('')+'</ul>'+
-    '<p class="note">서로 다른 날 3번 연속 맞히면 익힌 단어로 넘어가요. 같은 날에는 여러 번 맞혀도 한 번만 셉니다.</p><button type="button" class="btn primary wide" id="weakgo">이 단어들만 풀기</button></div>';
+  return '<h2 class="sec">아직 못 익힌 단어</h2><div class="card"><ul class="weak">'+L.map(x=>'<li><b>'+esc(x.q.it.o)+'</b><small>제'+x.q.it.a+'항 · '+x.c+'번 맞고 '+x.w+'번 틀림 · 도장 '+(store.run[wordKey(x.q.id)]||0)+'/3</small></li>').join('')+'</ul>'+
+    '<p class="note">도장 3개를 모으면 익힌 단어로 넘어가요. 같은 단어는 하루에 도장 1개만 찍혀요.</p><button type="button" class="btn primary wide" id="weakgo">이 단어들만 풀기</button></div>';
 }
 function startWeak(){ const L=weakList(); if(!L.length) return; startSession(shuffle(pairUp(L.map(x=>x.q.it), L.map(x=>x.q.it).concat(scopeP()))), {from:'weak'}); }
 // 선생님 페이지: 학생별 표(익힌 단어 수, 이번 주 새로 익힘, 푼 수, 2초 안에 답한 비율, 마지막 활동)
@@ -815,7 +815,7 @@ function teachStatsHTML(){
   const S=srvT.stats; if(!S) return srvT.statsState==='loading' ? '<p class="note">학생별 표 불러오는 중…</p>' : '';
   if(!S.length) return '<p class="note">이 학교 재원생 기록이 없습니다.</p>';
   const when = iso => { if(!iso) return '-'; const d=new Date(iso); if(isNaN(d)) return '-'; const n=Math.floor((Date.now()-d)/864e5); return n<=0?'오늘':n===1?'어제':n+'일 전'; };
-  return '<h2 class="sec">학생별 기록</h2><div class="card tstat"><table><thead><tr><th>이름</th><th>익힌</th><th>이번 주 칸</th><th>푼 수</th><th>빨리 넘김</th><th>마지막</th></tr></thead><tbody>'+
+  return '<h2 class="sec">학생별 기록</h2><div class="card tstat"><table><thead><tr><th>이름</th><th>익힌</th><th>이번 주 도장</th><th>푼 수</th><th>빨리 넘김</th><th>마지막</th></tr></thead><tbody>'+
     S.map(r=>{ const fp = r.tn ? Math.round(r.fastN/r.tn*100) : null, fa = r.fastN ? Math.round((r.fastC||0)/r.fastN*100) : null;
       // 다 아는 학생도 빨리 넘기므로, 빨리 넘긴 답을 많이 틀릴 때만 표시(빨리 넘긴 답 10개 이상, 그중 정답률 75% 아래)
       const hot = r.fastN>=10 && fa<75;
@@ -830,37 +830,37 @@ function bubbleText(){
   if(srv.state==='relogin') return '로그인이 만료됐어요. 다시 로그인하면 기록이 이어집니다.';
   const b = srv.board && srv.board.school ? srv.board.school.week : null, me = b && b.me;
   const t = todayCount();
-  if(me && me.up) return me.up.gap===1 ? '한 칸만 더 올리면 '+me.up.r+'위예요.' : me.up.gap+'칸만 더 올리면 '+me.up.r+'위예요.';
-  if(me && me.tied>1) return '공동 1위예요. 한 칸만 더 올리면 단독 1위!';
+  if(me && me.up) return '도장 '+(me.up.gap===1 ? '한' : me.up.gap)+'개만 더 모으면 '+me.up.r+'위예요.';
+  if(me && me.tied>1) return '공동 1위예요. 도장 한 개만 더 모으면 단독 1위!';
   if(me && me.r===1) return '이번 주 1위예요. 자리 지켜 볼까요?';
   const sch = srv.board && srv.board.sch;
   if(sch && sch.length>1){
     const rows = sch.map(x=>({s:x.s, avg:x.n?x.w/x.n:0})).sort((a,b)=>b.avg-a.avg), i = rows.findIndex(r=>sameSchool(r.s, store.school));
-    if(i>0) return rows[0].s+'보다 우리 학교가 1인당 '+(Math.round((rows[0].avg-rows[i].avg)*10)/10)+'칸 뒤처져요. 한 칸이 평균을 올립니다.';
-    if(i===0 && rows[1] && rows[0].avg>0) return '학교 대항 1위예요. '+rows[1].s+'가 '+(Math.round((rows[0].avg-rows[1].avg)*10)/10)+'칸 차이로 따라와요.';
+    if(i>0) return rows[0].s+'보다 우리 학교가 1인당 도장 '+(Math.round((rows[0].avg-rows[i].avg)*10)/10)+'개 뒤처져요. 도장 하나가 평균을 올립니다.';
+    if(i===0 && rows[1] && rows[0].avg>0) return '학교 대항 1위예요. '+rows[1].s+'가 도장 '+(Math.round((rows[0].avg-rows[1].avg)*10)/10)+'개 차이로 따라와요.';
   }
-  if(t) return '오늘 '+t+'문제 맞혔어요. 단어마다 하루 한 칸씩, 3칸이 차면 익힌 단어예요.';
+  if(t) return '오늘 '+t+'문제 맞혔어요. 단어마다 하루에 도장 1개, 3개를 모으면 익힌 단어예요.';
   return '느낌이 아니라 조항을 근거로 골라 보세요.';
 }
 function rankHTML(b, all, teach, per){
-  const wk = per==='week', u = wk ? '칸' : '개', one = wk ? '한 칸만 올려도' : '한 단어만 익혀도';
+  const wk = per==='week', pre = wk ? '도장 ' : '', one = wk ? '도장 한 개만 모아도' : '한 단어만 익혀도';
   if(!b.top.length) return '<div class="rank-msg">'+(teach?'아직 기록이 없습니다.':'아직 기록이 없습니다. '+one+' 1위입니다.')+'</div>';
   const row = g => '<div class="r'+(g.r<=3?' top':'')+(g.me?' me':'')+'"><span class="no">'+g.r+'위</span><span class="nm">'+
     g.n.map(x=>'<span>'+esc(x[0])+(all && x[1] ? '<small>'+esc(x[1])+'</small>' : '')+'</span>').join(' <i class="sep">·</i> ')+
-    (g.more?' <i class="sep">외 '+g.more+'명</i>':'')+'</span><span class="d">'+g.d+u+'</span></div>';
+    (g.more?' <i class="sep">외 '+g.more+'명</i>':'')+'</span><span class="d">'+pre+g.d+'개</span></div>';
   let rows=b.top.map(row).join('');
   if(b.mine) rows+='<div class="gap">⋯</div>'+row(b.mine);
   if(teach) return '<div class="rank">'+rows+'</div>';
   const me=b.me; let msg;
   if(me){
-    if(me.up) msg=me.up.r+'위까지 '+me.up.gap+u+' 남았습니다.';
-    else if(me.tied>1) msg='공동 1위입니다. '+(wk?'한 칸만 더 올리면':'한 단어만 더 익히면')+' 단독 1위입니다.';
-    else if(me.lead) msg='2위보다 '+me.lead+u+' 앞서 있습니다.';
+    if(me.up) msg=me.up.r+'위까지 '+pre+me.up.gap+'개 남았습니다.';
+    else if(me.tied>1) msg='공동 1위입니다. '+(wk?'도장 한 개만 더 모으면':'한 단어만 더 익히면')+' 단독 1위입니다.';
+    else if(me.lead) msg='2위보다 '+pre+me.lead+'개 앞서 있습니다.';
     else msg='현재 1위입니다.';
   } else msg = one+' 순위에 올라갑니다.';
   return '<div class="rank">'+rows+'</div><div class="rank-msg go">'+msg+'</div>';
 }
-// 학교 대항: 학교 전체가 이번 주에 올린 익힘 칸(누적은 익힌 단어 수) ÷ 나누는 인원. 분자는 전원 포함.
+// 학교 대항: 학교 전체가 이번 주에 모은 도장(누적은 익힌 단어 수) ÷ 나누는 인원. 분자는 전원 포함.
 // 나누는 인원은 학교별로 보정(경쟁이 붙은 상위 학교끼리 차이가 너무 벌어지지 않게). 표에 없는 학교는 재원생 수 그대로.
 //   동양: 35명까지만 / 경복: 13명 이상으로 / 명덕: 16명까지만
 const VS_ADJ = { '동양': n => Math.min(n, 35), '경복': n => Math.max(n, 13), '명덕': n => Math.min(n, 16) };
@@ -873,8 +873,8 @@ function vsHTML(){
   const max = Math.max(...rows.map(r=>r.avg), 0.0001);
   return '<h2 class="sec">학교대항전🎊 · '+(per==='week'?'이번 주':'누적')+'</h2><div class="card"><div class="vs">'+rows.map((r,i)=>
     '<div class="v'+(sameSchool(r.s, store.school)?' me':'')+'"><span class="s">'+(i+1)+'위 '+esc(r.s)+'</span><span class="m"><i style="width:'+(r.avg/max*100)+'%"></i></span>'+
-    '<span class="d">1인당 <b>'+(Math.round(r.avg*10)/10)+(per==='week'?'칸':'개')+'</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
-    '</div><p class="note">'+(per==='week'?'학교 전체가 이번 주에 올린 익힘 칸을 인원으로 나눈 값이에요.':'학교 전체가 익힌 단어 수를 인원으로 나눈 값이에요.')+' 인원이 많은 학교가 손해 보지 않게, 나누는 인원을 조금 보정했어요.<br>안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
+    '<span class="d">1인당 '+(per==='week'?'도장 ':'')+'<b>'+(Math.round(r.avg*10)/10)+'개</b> · '+r.p+'/'+r.n+'명</span></div>').join('')+
+    '</div><p class="note">'+(per==='week'?'학교 전체가 이번 주에 모은 도장 수를 인원으로 나눈 값이에요.':'학교 전체가 익힌 단어 수를 인원으로 나눈 값이에요.')+' 인원이 많은 학교가 손해 보지 않게, 나누는 인원을 조금 보정했어요.<br>안 푼 친구가 많으면 평균이 내려갑니다.</p></div>';
 }
 function boardHTML(){
   const teach = !auth && guest && !!teachTok;
@@ -892,7 +892,7 @@ function boardHTML(){
   return '<div class="card"><div class="seg">'+
     chips([{id:'school', label:store.school}, {id:'all', label:'전체'}], sc, 'sc', false)+
     chips([{id:'week', label:'이번 주'}, {id:'total', label:'누적'}], per, 'per', false)+'</div>'+
-    '<p class="note bnote">'+(per==='week' ? '이번 주에 오른 익힘 칸이에요. 단어마다 3칸이고 하루 한 번 맞히면 1칸 올라요. 틀리면 그 단어 칸이 0이 되고, 3칸이 다 차면 익힌 단어예요.' : '지금까지 익힌 단어 수예요. 틀리면 그 단어만 다시 익히는 중으로 돌아가요.')+'</p>'+
+    '<p class="note bnote">'+(per==='week' ? '이번 주에 모은 도장이에요. 단어마다 도장 3개를 모으면 익힌 단어예요. 하루 한 번 맞히면 1개 찍히고, 틀리면 그 단어 도장이 다 지워져요.' : '지금까지 익힌 단어 수예요. 틀리면 그 단어만 다시 익히는 중으로 돌아가요.')+'</p>'+
     body+'</div>'+(teach?teachStatsHTML():statsHTML()+weakHTML());
 }
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -1234,7 +1234,7 @@ function renderResult(){
   // 누적 점수는 같은 문제를 하루에 한 번만 세므로, 왜 안 오르는지 보이게 알려 준다
   const gained = sess.gained||0, rep = c - gained;
   const mg = sess.mastGain||0, ml = sess.mastLost||0, kg = sess.kanGain||0;
-  const gainLine = ghost ? '' : '<p class="gain">익힘 칸 <b>'+(kg<0?kg:'+'+kg)+'</b> · 익힌 단어 <b>+'+mg+'</b>'+(ml ? ' · 틀려서 다시 익히는 중으로 간 단어 '+ml+'개' : '')+(kg<=0 && c ? '<br>같은 단어는 하루에 한 칸만 올라요.' : '')+'</p>';
+  const gainLine = ghost ? '' : '<p class="gain">도장 <b>'+(kg<0?kg:'+'+kg)+'</b> · 익힌 단어 <b>+'+mg+'</b>'+(ml ? ' · 틀려서 다시 익히는 중으로 간 단어 '+ml+'개' : '')+(kg<=0 && c ? '<br>같은 단어는 하루에 도장 1개만 찍혀요.' : '')+'</p>';
   app.innerHTML=hero(kb)+'<div class="scorebox"><div class="qkind">결과</div><p class="score">'+c+' <span>/ '+n+'</span></p>'+gainLine+stamp+'</div>'+list+
     '<div class="row">'+(wrong.length?'<button type="button" class="btn primary" id="rw">틀린 문제만 다시</button>':'')+
     '<button type="button" class="btn" id="again">한 번 더</button><button type="button" class="btn" id="home2">처음으로</button></div>';
