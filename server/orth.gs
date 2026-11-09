@@ -29,10 +29,12 @@ var ORTH_ID = /^[a-z][0-9a-z]{1,23}$/;   // 문제 번호 모양
 //       옛 기록은 날짜 번호(한국 시간 1970-01-01부터 며칠째, 10만 미만)로 들어 있음 → 그날 정오로 봄(orthRdH_)
 //   도장 계단: 쓱쓱(kind 's')으로는 1개까지, 고르기('p')로는 2개까지, 직접 쓰기('t')로 3개째. 틀리면 그 단어 도장이 다 지워지는데, 쓰기에서 틀린 건 안 지움(그날 도장만 못 받음)
 //   kan: 지금 익힘 칸 합(단어마다 0~3칸, run의 합) · kan0: 이번 주 시작 때 칸 합. '이번 주' 순위 = kan − kan0(2026-11-09 사용자 결정: 첫날부터 숫자가 오르게)
-var ORTH_COLS = ['studentId', 'school', 'name', 'total', 'week', 'weekN', 'day', 'dayN', 'solved', 'updatedAt', 'dayIds', 'cids', 'wrong', 'st', 'mast', 'mast0', 'fastN', 'fastC', 'tn', 'tsum', 'run', 'fast', 'v', 'rd', 'kan', 'kan0'];
+//   rev: 이번 주 복습 도장 수. 익힌 단어(도장 3개)를 7일 넘게 지나 다시 맞히면 1개(주 시작 때 0으로). '이번 주' = (kan − kan0) + rev
+var ORTH_COLS = ['studentId', 'school', 'name', 'total', 'week', 'weekN', 'day', 'dayN', 'solved', 'updatedAt', 'dayIds', 'cids', 'wrong', 'st', 'mast', 'mast0', 'fastN', 'fastC', 'tn', 'tsum', 'run', 'fast', 'v', 'rd', 'kan', 'kan0', 'rev'];
 var ORTH_LIGHT = 10;         // 순위 계산 때 읽는 앞쪽 칸 수(studentId ~ updatedAt). 뒤쪽 숫자 칸(mast ~ tsum)은 따로 더 읽음
 var ORTH_RANK_COLS = ['mast', 'mast0', 'fastN', 'fastC', 'tn', 'tsum'];
-var ORTH_NUM = { total: 1, weekN: 1, dayN: 1, solved: 1, mast: 1, mast0: 1, fastN: 1, fastC: 1, tn: 1, tsum: 1, v: 1, kan: 1, kan0: 1 };
+var ORTH_NUM = { total: 1, weekN: 1, dayN: 1, solved: 1, mast: 1, mast0: 1, fastN: 1, fastC: 1, tn: 1, tsum: 1, v: 1, kan: 1, kan0: 1, rev: 1 };
+var ORTH_REV_H = 7 * 24;     // 익힌 단어를 다시 확인하는 간격(시간). 맞히면 복습 도장 1개
 var ORTH_LIST = { dayIds: 1, cids: 1, wrong: 1 };
 var ORTH_MAP = { st: 1, run: 1, fast: 1, rd: 1 };
 var ORTH_RUN = 3;            // 도장 이만큼 모으면 '익힘'(같은 단어는 하루에 한 번만)
@@ -67,12 +69,12 @@ function orthMask(name) {
 /* ---------- 학생 한 줄 ---------- */
 function orthBlank_(st) {
   return { studentId: st.id, school: st.school, name: st.name, total: 0, week: '', weekN: 0, day: '', dayN: 0, solved: 0,
-    updatedAt: '', dayIds: [], cids: [], wrong: [], st: {}, mast: 0, mast0: 0, fastN: 0, fastC: 0, tn: 0, tsum: 0, run: {}, fast: {}, v: 3, rd: {}, kan: 0, kan0: 0 };
+    updatedAt: '', dayIds: [], cids: [], wrong: [], st: {}, mast: 0, mast0: 0, fastN: 0, fastC: 0, tn: 0, tsum: 0, run: {}, fast: {}, v: 3, rd: {}, kan: 0, kan0: 0, rev: 0 };
 }
 // 날짜가 바뀌었으면 오늘·이번 주 수를 새로. 주가 바뀌면 '이번 주 시작 때 익힌 수'도 지금 값으로
 function orthRoll_(row, day, week) {
   if (row.day !== day) { row.day = day; row.dayN = 0; row.dayIds = []; }
-  if (row.week !== week) { row.week = week; row.weekN = 0; row.mast0 = Number(row.mast) || 0; row.kan0 = orthKan_(row.run); }
+  if (row.week !== week) { row.week = week; row.weekN = 0; row.mast0 = Number(row.mast) || 0; row.kan0 = orthKan_(row.run); row.rev = 0; }
 }
 function orthMastCount_(run) { var n = 0; Object.keys(run || {}).forEach(function (k) { if (run[k] >= ORTH_RUN) n++; }); return n; }
 function orthRdOut_(rd) { var o = {}; Object.keys(rd || {}).forEach(function (k) { o[k] = orthRdH_(rd[k]); }); return o; }
@@ -100,7 +102,7 @@ function orthSeed_(row) {
 }
 function orthMine_(row) {
   return { total: row.total, week: row.week, weekN: row.weekN, day: row.day, dayN: row.dayN, dayIds: row.dayIds.slice(), solved: row.solved,
-    mast: Number(row.mast) || 0, mast0: Number(row.mast0) || 0, kan: Number(row.kan) || 0, kan0: Number(row.kan0) || 0 };
+    mast: Number(row.mast) || 0, mast0: Number(row.mast0) || 0, kan: Number(row.kan) || 0, kan0: Number(row.kan0) || 0, rev: Number(row.rev) || 0 };
 }
 // 시트 한 칸은 5만 자까지라, 문제별 기록이 너무 길어지면 오답 없는 문제부터 덜어 냄(오답 노트는 그대로)
 function orthTrim_(row) {
@@ -197,7 +199,7 @@ function orthBoard_(me, store, env, myRow) {
   // 순위는 도장 수. 누적 = 지금 도장 합(kan), 이번 주 = 이번 주에 모은 도장(지금 합 − 주 시작 때 합, 0 아래로는 안 내려감)
   var people = Object.keys(best).filter(function (id) { return active[id]; }).map(function (id) {
     var r = best[id], s = active[id], m = Number(r.mast) || 0;
-    return { id: id, n: s.name, s: s.school, w: r.week === week ? Math.max(0, (Number(r.kan) || 0) - (Number(r.kan0) || 0)) : 0, t: Number(r.kan) || 0 };
+    return { id: id, n: s.name, s: s.school, w: r.week === week ? Math.max(0, (Number(r.kan) || 0) - (Number(r.kan0) || 0)) + (Number(r.rev) || 0) : 0, t: Number(r.kan) || 0 };
   });
   // 학교 이름은 트래커 표기('동양')와 화면 표기('동양고')가 다를 수 있어 '고·여고·고등학교'를 떼고 비교
   var mates = people.filter(function (p) { return orthSchoolKey_(p.s) === orthSchoolKey_(me.school); });
@@ -301,6 +303,7 @@ if (typeof CORE_ACTIONS !== 'undefined') {
           // 도장: 날짜가 다르고 10시간 지났을 때, 그 유형으로 올라갈 수 있는 수까지만
           var lv = Number(run[k]) || 0;
           if (lv < ORTH_CAP[kind] && orthCanStamp_(rd[k], nowH)) { run[k] = lv + 1; rd[k] = nowH; }
+          else if (lv >= ORTH_RUN && kind !== 's' && nowH - orthRdH_(rd[k]) >= ORTH_REV_H) { rd[k] = nowH; row.rev = (Number(row.rev) || 0) + 1; }   // 익힌 단어 복습 도장(7일마다, 쓱쓱 빼고)
           // 같은 문제는 하루에 한 번만 셈
           if (!seen[id] && row.dayN < ORTH_DAY_CAP) { seen[id] = 1; row.dayIds.push(id); row.dayN++; row.weekN++; row.total++; }
         } else { s[1]++; wrong[id] = 1; if (kind !== 't') { delete run[k]; delete rd[k]; } }   // 틀리면 도장이 다 지워짐(쓰기에서 틀린 건 빼고)
@@ -354,7 +357,7 @@ if (typeof CORE_ACTIONS !== 'undefined') {
     store.orthRows().forEach(function (r) { var b = rows[r.studentId]; if (!b || r.total > b.total) rows[r.studentId] = r; });
     var list = store.students().filter(function (s) { return s.status === 'active' && orthSchoolKey_(s.school) === orthSchoolKey_(school); }).map(function (s) {
       var r = rows[s.id] || {}, m = Number(r.mast) || 0, tn = Number(r.tn) || 0;
-      return { id: s.id, n: s.name, mast: m, kan: Number(r.kan) || 0, wk: r.week === week ? Math.max(0, (Number(r.kan) || 0) - (Number(r.kan0) || 0)) : 0, total: Number(r.total) || 0, solved: Number(r.solved) || 0,
+      return { id: s.id, n: s.name, mast: m, kan: Number(r.kan) || 0, wk: r.week === week ? Math.max(0, (Number(r.kan) || 0) - (Number(r.kan0) || 0)) + (Number(r.rev) || 0) : 0, total: Number(r.total) || 0, solved: Number(r.solved) || 0,
         tn: tn, fastN: Number(r.fastN) || 0, fastC: Number(r.fastC) || 0, avg: tn ? Math.round((Number(r.tsum) || 0) / tn * 10) / 10 : 0, at: r.updatedAt || '', old: !!r.studentId && Number(r.v || 0) < 2 };
     });
     list.sort(function (a, b) { return b.kan - a.kan || (a.n < b.n ? -1 : a.n > b.n ? 1 : 0); });
@@ -438,7 +441,7 @@ function orthSheetRows_() {
   var vcol = ORTH_COLS.indexOf('v') + 1;
   var vv = sh.getLastColumn() >= vcol ? sh.getRange(2, vcol, last - 1, 1).getValues() : a.map(function () { return ['']; });
   var kcol = ORTH_COLS.indexOf('kan') + 1;
-  var kk = sh.getLastColumn() >= kcol + 1 ? sh.getRange(2, kcol, last - 1, 2).getValues() : a.map(function () { return ['', '']; });
+  var kk = sh.getLastColumn() >= kcol + 2 ? sh.getRange(2, kcol, last - 1, 3).getValues() : a.map(function () { return ['', '', '']; });
   var out = [];
   for (var i = 0; i < a.length; i++) {
     if (String(a[i][0]) === '') continue;
@@ -448,7 +451,7 @@ function orthSheetRows_() {
     while (r.length < vcol - 1) r.push('');
     r.push(vv[i] ? vv[i][0] : '');
     while (r.length < kcol - 1) r.push('');
-    r.push(kk[i] ? kk[i][0] : '', kk[i] ? kk[i][1] : '');
+    r.push(kk[i] ? kk[i][0] : '', kk[i] ? kk[i][1] : '', kk[i] ? kk[i][2] : '');
     out.push(orthParse_(r));
   }
   return out;
@@ -546,7 +549,7 @@ function orthCheck() {
     if (en.propGet && en.propPut) ok('로그인 유지(30일) 저장소 준비됨'); else ng('스크립트 속성을 쓸 수 없습니다.');
   } catch (e) { ng('시트 확인 중 오류: ' + (e && e.message ? e.message : e)); }
 
-  try { orthSelfTest_(); ok('메모리 시험 통과 (선생님 순위표 · 로그인·첫 비밀번호 변경 · 30일 유지·연장·만료 · 비밀번호 바뀌면 풀림 · 하루 한 번만 셈 · 같은 단어는 하루에 한 번만 익힘으로 셈 · 도장 계단(쓱쓱 1·고르기 2·쓰기 3) · 10시간 간격 · 이번 주 도장 · 같은 묶음 두 번 막기 · 오답 노트 · 학교·전체 순위 · 선생님 30일 토큰 · 학교 대항 합계 · 주가 바뀌면 이번 주 새로 · 퇴원생 빠짐)'); }
+  try { orthSelfTest_(); ok('메모리 시험 통과 (선생님 순위표 · 로그인·첫 비밀번호 변경 · 30일 유지·연장·만료 · 비밀번호 바뀌면 풀림 · 하루 한 번만 셈 · 같은 단어는 하루에 한 번만 익힘으로 셈 · 도장 계단(쓱쓱 1·고르기 2·쓰기 3) · 10시간 간격 · 이번 주 도장 · 복습 도장(7일) · 같은 묶음 두 번 막기 · 오답 노트 · 학교·전체 순위 · 선생님 30일 토큰 · 학교 대항 합계 · 주가 바뀌면 이번 주 새로 · 퇴원생 빠짐)'); }
   catch (e) { ng('메모리 시험 중 오류: ' + (e && e.message ? e.message : e)); }
   log();
 }
@@ -566,7 +569,7 @@ function orthSelfTest_() {
     subs: function () { return dc(db.subs); }, putSub: function (s) { up(db.subs, s, function (r) { return r.setId === s.setId && r.studentId === s.studentId; }); },
     checks: function () { return dc(db.checks); }, putCheck: function (c) { up(db.checks, c, function (r) { return r.setId === c.setId && r.studentId === c.studentId; }); },
     deleteSub: function (a, b) { db.subs = db.subs.filter(function (r) { return !(r.setId === a && r.studentId === b); }); },
-    orthRows: function () { return db.orth.map(function (r) { var o = {}; ORTH_COLS.slice(0, ORTH_LIGHT).concat(ORTH_RANK_COLS, ['v', 'kan', 'kan0']).forEach(function (c) { o[c] = r[c]; }); return dc(o); }); },
+    orthRows: function () { return db.orth.map(function (r) { var o = {}; ORTH_COLS.slice(0, ORTH_LIGHT).concat(ORTH_RANK_COLS, ['v', 'kan', 'kan0', 'rev']).forEach(function (c) { o[c] = r[c]; }); return dc(o); }); },
     orthLog: function (row) { db.log.push(row); },
     orthGet: function (id) { var r = db.orth.filter(function (x) { return x.studentId === id; })[0]; return r ? dc(r) : null; },
     orthPut: function (o) { up(db.orth, o, function (r) { return r.studentId === o.studentId; }); }
@@ -705,6 +708,14 @@ function orthSelfTest_() {
   must(P({ action: 'orthHome', token: tg }).orth.run.pa8 === 1, '자정 넘겨 20분 뒤엔 도장 안 찍힘');
   T = Date.UTC(2026, 0, 13, 1, 0, 0); P({ action: 'orthSync', token: tg, cid: 'g3', res: [['pa8', 1]] });
   must(P({ action: 'orthHome', token: tg }).orth.run.pa8 === 2, '10시간 뒤엔 찍힘');
+  // 복습 도장: 익힌 pa2를 7일 안에 맞히면 아무것도 없고, 7일 지나 맞히면 이번 주 +1(쓱쓱은 안 됨)
+  T = Date.UTC(2026, 0, 13, 2, 0, 0); P({ action: 'orthSync', token: tg, cid: 'v1', res: [['pa2', 1]] });
+  must(P({ action: 'orthHome', token: tg }).orth.mine.rev === 0, '7일 안 복습은 도장 없음');
+  T = Date.UTC(2026, 0, 18, 2, 0, 0); P({ action: 'orthSync', token: tg, cid: 'v2', res: [['opa2', 1, 2, 's']] });
+  must(P({ action: 'orthHome', token: tg }).orth.mine.rev === 0, '쓱쓱으로는 복습 도장 없음');
+  var v3 = P({ action: 'orthSync', token: tg, cid: 'v3', res: [['pa2', 1], ['pa2', 1]] });
+  must(v3.mine.rev === 1 && v3.board.school.week.me.d === 3, '7일 지나 맞히면 복습 도장 1(같은 날 두 번은 한 번, 이번 주 = pa8 2 + 복습 1): ' + JSON.stringify([v3.mine.rev, v3.board.school.week.me]));
+  T = Date.UTC(2026, 0, 13, 1, 0, 0);
 
   // 퇴원하면 순위에서 빠지고 로그인도 막힘
   must(P({ action: 'updateStudent', token: P({ action: 'adminLogin', pw: 'orth-check' }).token, id: id('나나나'), op: 'leave' }).ok, '퇴원 처리');
