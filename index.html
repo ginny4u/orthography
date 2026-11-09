@@ -112,6 +112,7 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .tin:focus{outline:none;border-color:var(--accent)}
 .tin.ok{border-color:#2a9d5c;background:#f0faf3}
 .tw.ok .tin{border-color:#2a9d5c}.tw.ng .tin{border-color:var(--accent)}
+.gain .nost{display:block;margin-top:6px;font-size:13px;line-height:1.5;color:var(--muted)}
 .fixw{margin:12px 0 4px}.fixw p{margin:0 0 6px;font-size:14px;color:var(--muted)}.fixw label{display:flex;align-items:center;gap:8px;margin-bottom:6px}.fixw .pn{color:var(--accent);font-weight:600}
 .opt.pw span{display:block}
 .opt{background:var(--paper);border:1px solid var(--rule);border-radius:12px;padding:14px;text-align:left;font-size:16px;line-height:1.5}
@@ -467,7 +468,10 @@ function applyRes(id, ok, kc){
   const s=store.st[id]||(store.st[id]={c:0,w:0}), k=wordKey(id); kc = CAPC[kc] ? kc : 'p';
   if(ok){ s.c++; delete store.wrong[id]; const lv=lvl(k);
     if(lv<CAPC[kc] && canStamp(k)){ store.run[k]=lv+1; store.rd[k]=hourNo(); }
-    else if(kc!=='s' && canRev(k)){ store.rd[k]=hourNo(); store.rev=(store.rev||0)+1; if(sess) sess.revGain=(sess.revGain||0)+1; } }
+    else if(kc!=='s' && canRev(k)){ store.rd[k]=hourNo(); store.rev=(store.rev||0)+1; if(sess) sess.revGain=(sess.revGain||0)+1; }
+    else if(sess){   // 맞혔는데 도장을 못 받은 까닭(결과 화면에 알려 줌)
+      const why = lv>=RUN_N ? (kc==='s' ? 'capS' : 'mast') : !canStamp(k) ? 'today' : kc==='s' ? 'capS' : 'capP';
+      sess.noSt=sess.noSt||{}; sess.noSt[why]=(sess.noSt[why]||0)+1; } }
   else { s.w++; store.wrong[id]=1; if(kc!=='t'){ delete store.run[k]; delete store.rd[k]; } }
 }
 function applyOrth(o){
@@ -621,15 +625,17 @@ function weight(q){
   (q.kind==='pair' ? [q.id, q.id2] : [q.id]).forEach(id=>{
     const k=wordKey(id), lv=lvl(k); let x;
     if(store.wrong[id]) x=5;
-    else if(lv>=RUN_N) x = canRev(k) ? 3 : 0.3;   // 익힌 단어: 7일 지나면 복습 도장 받을 수 있음
-    else if(!canStamp(k)) x=1;
-    else if(q.kind==='swipe' && lv>=1) x=1.5;   // 쓱쓱으로는 1개까지만
+    else if(lv>=RUN_N) x = (canRev(k) && q.kind!=='swipe') ? 3 : 0.1;   // 익힌 단어: 7일 지나면 복습 도장(쓱쓱 빼고)
+    else if(!canStamp(k)) x=0.1;   // 오늘 이미 도장 받은 단어: 받을 단어가 남아 있으면 거의 안 나옴
+    else if(q.kind==='swipe' && lv>=1) x=0.1;   // 쓱쓱으로는 1개까지만
     else x = lv===2 ? 4 : 3;
     w=Math.max(w,x); });
   return w;
 }
+// 도장을 받을 수 있는 문제(무게 1 이상: 틀린 것·오늘 받을 단어·복습)를 먼저 채우고, 모자랄 때만 나머지로 채움
 function sample(pool, n){
-  return pool.map(q=>({q, k:Math.pow(Math.random(), 1/weight(q))})).sort((a,b)=>b.k-a.k).slice(0,n).map(x=>x.q);
+  return pool.map(q=>{ const w=weight(q); return {q, top:w>=1, k:Math.pow(Math.random(), 1/w)}; })
+    .sort((a,b)=>(b.top-a.top) || b.k-a.k).slice(0,n).map(x=>x.q);
 }
 function prepare(q){
   if(q.kind==='pick') q.opts = shuffle([q.it.o, q.it.x]);
@@ -842,7 +848,11 @@ function todayList(){
   return scopeP().map(p=>{ const k=wordKey(p.id), s=store.st[p.id]||{c:0,w:0}, so=store.st['o'+p.id]||{c:0,w:0}; return {it:p, lv:lvl(k), rev:canRev(k), ok:(lvl(k)<RUN_N && canStamp(k)) || canRev(k), w:s.w+so.w, c:s.c+so.c}; })
     .filter(x=>x.ok).sort((a,b)=>(b.rev?-1:b.lv)-(a.rev?-1:a.lv) || b.w-a.w || (a.c+a.w)-(b.c+b.w));   // 쓰기 차례 → 2개 → 1개 → 0개 → 복습
 }
-const todayCountW = () => todayList().length;
+function todayLine(t){
+  const L=todayList(), all=L.length, sw=L.filter(x=>x.lv===0 && !x.rev).length, done='오늘 받을 수 있는 도장은 다 받았어요. 내일 다시 받을 수 있어요.';
+  if(t==='swipe') return sw ? '쓱쓱으로 도장 받을 수 있는 단어 <b>'+sw+'개</b>' : all ? '쓱쓱으로 받을 도장은 다 받았어요. 바른 표기 고르기로 <b>'+all+'개</b> 더 받을 수 있어요.' : done;
+  return all ? '오늘 도장 받을 수 있는 단어 <b>'+all+'개</b>' : done;
+}
 // 바른 표기를 그대로 보여 주면 답을 외우고 풀게 되므로 두 표기를 섞어서 보여 줌
 const twoForms = p => (h(p.id).charCodeAt(0)%2 ? [p.o, p.x] : [p.x, p.o]).map(esc).join(' <i class="sep">/</i> ');
 function weakHTML(){
@@ -990,7 +1000,7 @@ function renderHome(){
     return {t, n:pool.length, done}; })();
   const progLine = '<p class="note prog">이 범위의 '+((TYPES.find(x=>x.id===prog.t)||{}).label||'')+' <b>'+prog.n+'문제</b> 중 맞혀 본 문제 <b>'+prog.done+'개</b>'+(prog.n ? ' ('+Math.round(prog.done/prog.n*100)+'%)' : '')+
     (prog.n && prog.done>=prog.n ? ' · 다 풀었어요. 범위를 넓히거나 다른 유형을 골라 보세요.' : '')+
-    ((auth||ghost) && prog.t!=='spot' ? '<br>오늘 도장 받을 수 있는 단어 <b>'+todayCountW()+'개</b>' : '')+'</p>';
+    ((auth||ghost) && prog.t!=='spot' ? '<br>'+todayLine(prog.t) : '')+'</p>';
   const summary = '범위: '+sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · 한 번에 '+(cur==='swipe'?SWIPE_N+'장':store.n+'문제')+' · '+prog.done+'/'+prog.n;
   const settings = !store.open ? '' : '<div class="settings">'+
     '<h2 class="sec" style="margin-top:12px">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+exLine+progLine+
@@ -1177,6 +1187,16 @@ function answerPair(q, k){
   afterAnswer(ok, q, whyLine(q.it)+(q.it2.w!==q.it.w || q.it2.a!==q.it.a ? whyLine(q.it2) : ''));
 }
 // 틀리면 바른 표기를 그대로 한 번 써야 다음으로 넘어감(모양만 보고 넘기는 걸 막으려고). 짝 문장은 둘 다
+// 결과 화면: 맞혔는데 도장을 못 받은 단어가 왜 그런지
+function noStLine(o){
+  if(!o) return '';
+  const L=[];
+  if(o.today) L.push('오늘 이미 도장 받은 단어 '+o.today+'개는 내일 다시 받을 수 있어요. 쓱쓱 넘기기와 바른 표기 고르기는 같은 단어로 셉니다.');
+  if(o.capS) L.push('쓱쓱 넘기기로는 도장 1개까지예요. '+o.capS+'개는 바른 표기 고르기로 풀면 받아요.');
+  if(o.capP) L.push('고르기로는 도장 2개까지예요. 3개째는 직접 쓰기로 받아요.');
+  if(o.mast) L.push('익힌 단어 '+o.mast+'개는 익힌 지 7일이 지나야 복습 도장을 받아요.');
+  return L.length ? '<span class="nost">'+L.join('<br>')+'</span>' : '';
+}
 function afterAnswer(ok, q, extra, noStamp){
   record(q, ok); sess.res.push({q, ok, extra});
   const fb=document.getElementById('fb');
@@ -1301,7 +1321,7 @@ function renderResult(){
   // 누적 점수는 같은 문제를 하루에 한 번만 세므로, 왜 안 오르는지 보이게 알려 준다
   const gained = sess.gained||0, rep = c - gained;
   const mg = sess.mastGain||0, ml = sess.mastLost||0, kg = (sess.kanGain||0)+(sess.revGain||0);
-  const gainLine = ghost ? '' : '<p class="gain">도장 <b>'+(kg<0?kg:'+'+kg)+'</b>'+(sess.revGain?' (복습 '+sess.revGain+')':'')+' · 익힌 단어 <b>+'+mg+'</b>'+(ml ? ' · 틀려서 다시 익히는 중으로 간 단어 '+ml+'개' : '')+(kg<=0 && c ? '<br>같은 단어는 하루에 도장 1개만 찍혀요.' : '')+'</p>';
+  const gainLine = ghost ? '' : '<p class="gain">도장 <b>'+(kg<0?kg:'+'+kg)+'</b>'+(sess.revGain?' (복습 '+sess.revGain+')':'')+' · 익힌 단어 <b>+'+mg+'</b>'+(ml ? ' · 틀려서 다시 익히는 중으로 간 단어 '+ml+'개' : '')+noStLine(sess.noSt)+'</p>';
   app.innerHTML=hero(kb)+'<div class="scorebox"><div class="qkind">결과</div><p class="score">'+c+' <span>/ '+n+'</span></p>'+gainLine+stamp+'</div>'+list+
     '<div class="row">'+(wrong.length?'<button type="button" class="btn primary" id="rw">틀린 문제만 다시</button>':'')+
     '<button type="button" class="btn" id="again">한 번 더</button><button type="button" class="btn" id="home2">처음으로</button></div>';
