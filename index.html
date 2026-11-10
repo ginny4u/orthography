@@ -281,6 +281,7 @@ details.art[open] summary .no{color:var(--accent)}
 .weak li:first-child{border-top:0;padding-top:0}
 .weak li b{font-size:16px;font-weight:600}
 .weak li small{font-size:12px;color:var(--muted)}
+.weak.freq li{display:block}.weak.freq li small{display:block;margin-top:2px}
 .tstat{overflow-x:auto}
 .tstat table{width:100%;border-collapse:collapse;font-size:14px;line-height:normal}
 .tstat th,.tstat td{padding:8px 6px;text-align:right;border-top:1px solid var(--rule);white-space:nowrap}
@@ -1329,9 +1330,10 @@ function renderResult(){
   document.getElementById('again').onclick=()=>{
     if(sess.meta.from==='art') return startArt(sess.meta.n);
     if(sess.meta.from==='wrong') return startWrong();
+    if(sess.meta.from==='freq') return startFreq();
     return startMode(sess.meta.type||store.type||'pick');
   };
-  document.getElementById('home2').onclick=()=>{ const art=sess.meta.from==='art'; sess=null; go(art?'rules':'practice'); };
+  document.getElementById('home2').onclick=()=>{ const f=sess.meta.from; sess=null; go(f==='art'?'rules':f==='freq'?'notes':'practice'); };
   flush();
 }
 
@@ -1362,17 +1364,36 @@ function renderRules(){
 }
 
 /* ---------- 오답 노트 */
+// 자주 틀린 단어: 바른 표기 문제(고르기·쓱쓱·쓰기 합쳐) 지금까지 2번 이상 틀린 단어. 다시 맞혀도, 익혀도 남는다. 많이 틀린 순
+const FREQ_W = 2, FREQ_SHOW = 20;
+function freqList(){
+  const seen={}, L=[];
+  Object.keys(BYID).forEach(id=>{ if(id[0]!=='p' || seen[id]) return; seen[id]=1;
+    const s=store.st[id]||{c:0,w:0}, so=store.st['o'+id]||{c:0,w:0}, w=s.w+so.w, n=w+s.c+so.c;
+    if(w>=FREQ_W) L.push({it:BYID[id], w, n, lv:lvl(wordKey(id))}); });
+  return L.sort((x,y)=>y.w-x.w || y.w/y.n-x.w/x.n || x.it.a-y.it.a);
+}
+function startFreq(){
+  const pk = freqList().map(x=>x.it);
+  startSession(shuffle(mkPick(pk, pk.concat(scopeP()))).slice(0,15), {from:'freq'});
+}
 function renderNotes(){
   view='notes'; setTabs(true);
-  const ids=Object.keys(store.wrong).filter(id=>BYID[id]);
-  if(!ids.length){ app.innerHTML='<div class="qkind">오답 노트</div><p class="empty">틀린 문제가 없습니다. 아직 풀지 않았거나 틀린 문제를 모두 다시 맞힌 상태입니다.</p>'; return; }
+  const ids=Object.keys(store.wrong).filter(id=>BYID[id]), F=freqList();
+  if(!ids.length && !F.length){ app.innerHTML='<div class="qkind">오답 노트</div><p class="empty">틀린 문제가 없습니다. 아직 풀지 않았거나 틀린 문제를 모두 다시 맞힌 상태입니다.</p>'; return; }
   const by={}; ids.forEach(id=>{ const a=BYID[id].a; (by[a]=by[a]||[]).push(id); });
   const rows=Object.keys(by).map(Number).sort((x,y)=>by[y].length-by[x].length||x-y);
-  const max=Math.max(...rows.map(a=>by[a].length));
-  app.innerHTML='<div class="qkind">오답 노트</div><p class="note" style="margin-top:0">다시 맞히면 오답 노트에서 빠집니다. 많이 틀린 조항부터 보여 줍니다.</p>'+
+  const max=Math.max(1, ...rows.map(a=>by[a].length));
+  const freq = F.length ? '<h2 class="sec">자주 틀린 단어 '+F.length+'개</h2><div class="card"><ul class="weak freq">'+F.slice(0,FREQ_SHOW).map(x=>'<li><b>'+twoForms(x.it)+'</b><small>제'+x.it.a+'항 · '+x.n+'번 중 '+x.w+'번 틀림 · '+(x.lv>=RUN_N?'익힘':'도장 '+x.lv+'/3')+'</small></li>').join('')+'</ul>'+
+    (F.length>FREQ_SHOW?'<p class="note">외 '+(F.length-FREQ_SHOW)+'개</p>':'')+
+    '<p class="note">지금까지 2번 이상 틀린 단어입니다. 다시 맞혀도, 익힌 뒤에도 여기에는 남습니다.</p><button type="button" class="btn primary wide" id="fq">자주 틀린 단어만 풀기</button></div>' : '';
+  app.innerHTML='<div class="qkind">오답 노트</div>'+
+    (ids.length ? '<p class="note" style="margin-top:0">다시 맞히면 오답 노트에서 빠집니다. 많이 틀린 조항부터 보여 줍니다.</p>'+
     rows.map(a=>'<div class="nrow"><span class="no">제'+a+'항</span><span><span style="display:block;margin-bottom:4px">'+esc(ART[a]?ART[a].k:'')+'</span><span class="meter"><i style="width:'+(by[a].length/max*100)+'%"></i></span></span><button type="button" class="linkbtn" data-goart="'+a+'">'+by[a].length+'개</button></div>').join('')+
-    '<button type="button" class="btn primary wide" id="wr">오답만 풀기 ('+ids.length+')</button>';
-  document.getElementById('wr').onclick=startWrong;
+    '<button type="button" class="btn primary wide" id="wr">오답만 풀기 ('+ids.length+')</button>'
+    : '<p class="note" style="margin-top:0">지금 다시 풀 오답은 없습니다.</p>')+freq;
+  const wr=document.getElementById('wr'); if(wr) wr.onclick=startWrong;
+  const fq=document.getElementById('fq'); if(fq) fq.onclick=startFreq;
   app.querySelectorAll('[data-goart]').forEach(b=>b.onclick=()=>{ go('rules'); const d=document.getElementById('a'+b.dataset.goart); if(d){ d.open=true; d.scrollIntoView({block:'start'}); } });
 }
 
