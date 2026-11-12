@@ -21,17 +21,17 @@
    제목은 주아체. 색은 로고 크레파스 빨강 하나: 주요 버튼·선택·교정 표시. 틀린 답은 회색 줄긋기. */
 :root{
   --bg:#fbf8f1; --paper:#ffffff; --ink:#1c1b1a; --muted:#75716b; --rule:#e6e2da; --plate:#efebe3;
-  --accent:#bf1f1a; --soft:#f9e8e5;
+  --accent:#bf1f1a; --soft:#f9e8e5; --okbg:#f0faf3;
   --jua:"Jua","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
 }
 @media (min-width:700px){.wrap{max-width:640px}.hero img{width:96px}}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#151514; --paper:#1f1e1c; --ink:#ecebe7; --muted:#a19d97; --rule:#36332f; --plate:#2a2826;
-  --accent:#e2574f; --soft:#3b2220; color-scheme:dark}}
+  --accent:#e2574f; --soft:#3b2220; --okbg:#173022; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#151514; --paper:#1f1e1c; --ink:#ecebe7; --muted:#a19d97; --rule:#36332f; --plate:#2a2826;
-  --accent:#e2574f; --soft:#3b2220; color-scheme:dark}
+  --accent:#e2574f; --soft:#3b2220; --okbg:#173022; color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{overflow-x:hidden;font-synthesis:none;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;letter-spacing:-.03em;line-height:1.5;margin:0;word-break:keep-all}
@@ -108,9 +108,9 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .opts.two .opt.pw{font-size:16px;line-height:1.5}
 .mark.bad{text-decoration:underline wavy var(--accent);text-underline-offset:4px}
 .tw{display:flex;gap:8px;margin-top:14px}
-.tin{flex:1;min-width:0;font:inherit;font-size:18px;padding:10px 12px;border:1.5px solid var(--rule);border-radius:12px;background:#fff}
+.tin{flex:1;min-width:0;font:inherit;font-size:18px;padding:10px 12px;border:1.5px solid var(--rule);border-radius:12px;background:var(--paper);color:var(--ink)}
 .tin:focus{outline:none;border-color:var(--accent)}
-.tin.ok{border-color:#2a9d5c;background:#f0faf3}
+.tin.ok{border-color:#2a9d5c;background:var(--okbg)}
 .tw.ok .tin{border-color:#2a9d5c}.tw.ng .tin{border-color:var(--accent)}
 .gain .nost{display:block;margin-top:6px;font-size:13px;line-height:1.5;color:var(--muted)}
 .fixw{margin:12px 0 4px}.fixw p{margin:0 0 6px;font-size:14px;color:var(--muted)}.fixw label{display:flex;align-items:center;gap:8px;margin-bottom:6px}.fixw .pn{color:var(--accent);font-weight:600}
