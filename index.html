@@ -65,8 +65,8 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{display:inline-flex;align-items:center;height:32px;padding:0 12px;border:1px solid var(--rule);background:var(--paper);border-radius:999px;font-size:14px;font-weight:500;line-height:normal;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--soft);color:var(--accent);border-color:var(--accent)}
-.nbadge{display:inline-block;box-sizing:border-box;font-size:.66em;width:1.4em;height:1.4em;line-height:1.4em;text-align:center;padding:.1em 0 0 .04em;margin-left:.45em;border-radius:.32em;background:var(--accent);color:#fff;font-weight:700;letter-spacing:0;vertical-align:middle;position:relative;top:-.15em;overflow:hidden;flex:none}
-.chip .nbadge{top:.1em}
+.nbadge{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;font-family:var(--sans);font-size:.66em;width:1.4em;height:1.4em;line-height:1;padding:0;margin-left:.45em;border-radius:.32em;background:var(--accent);color:#fff;font-weight:700;letter-spacing:0;vertical-align:.1em;flex:none}
+.chip .nbadge{vertical-align:0}
 .chip:disabled{cursor:default;border-style:dashed;color:var(--muted);background:transparent;opacity:.8}
 .note{font-size:14px;line-height:1.5;color:var(--muted);margin:8px 0 0}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:48px;padding:0 20px;border-radius:12px;border:1px solid var(--rule);background:var(--paper);font-size:16px;font-weight:600;line-height:normal}
