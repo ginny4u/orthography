@@ -65,6 +65,8 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{display:inline-flex;align-items:center;height:32px;padding:0 12px;border:1px solid var(--rule);background:var(--paper);border-radius:999px;font-size:14px;font-weight:500;line-height:normal;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--soft);color:var(--accent);border-color:var(--accent)}
+.nbadge{display:inline-block;box-sizing:border-box;font-size:.66em;width:1.4em;height:1.4em;line-height:1.4em;text-align:center;padding:.1em 0 0 .04em;margin-left:.45em;border-radius:.32em;background:var(--accent);color:#fff;font-weight:700;letter-spacing:0;vertical-align:middle;position:relative;top:-.15em;overflow:hidden;flex:none}
+.chip .nbadge{top:.1em}
 .chip:disabled{cursor:default;border-style:dashed;color:var(--muted);background:transparent;opacity:.8}
 .note{font-size:14px;line-height:1.5;color:var(--muted);margin:8px 0 0}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:48px;padding:0 20px;border-radius:12px;border:1px solid var(--rule);background:var(--paper);font-size:16px;font-weight:600;line-height:normal}
@@ -318,7 +320,7 @@ function ORTH_UNPACK(b64){
 }
 </script>
 <script src="data.js?v=8e0f903f"></script>
-<script src="school.js?v=65dbdd6d"></script>
+<script src="school.js?v=860a3fe9"></script>
 <script src="spot.js?v=77494439"></script>
 <script src="pairs.js?v=13af0387"></script>
 <script>
@@ -570,6 +572,11 @@ function srcSel(){
   return sel.length ? sel : ready;
 }
 // 학교 시험 범위에서 빠진 조항(학교 표의 excl): 그 학교 학생에겐 어느 자료에서도 안 낸다
+// 학교 표(school.js)의 new: 범위를 새로 더한 날. 그날부터 NEW_DAYS일 동안 범위 이름 옆에 N 표시
+const NEW_DAYS = 10;
+function isNew(sc, slot){ const m=SS.map[sc], d=m && m.new && m.new[slot]; if(!d) return false;
+  const t=new Date(d+'T00:00:00').getTime(); return !isNaN(t) && Date.now()>=t && (Date.now()-t)/864e5 < NEW_DAYS; }
+const NBADGE = '<span class="nbadge" title="새로 추가됨">N</span>';
 function exclOf(sc){ const m = SS.map[sc]; return new Set((m && m.excl) || []); }
 function scopeItems(sel, arts){
   // arts: 기본 개념에서 쓸 조항(장 고르기), sel: 고른 범위. 학교 자료 문제를 먼저 넣어 같은 문제면 자료 위치가 붙은 쪽을 씀
@@ -990,10 +997,10 @@ function renderHome(){
     ? '<button type="button" class="btn primary wide" id="start">'+esc(TYPES.find(t=>t.id===cur).label)+' '+nQ+'문제 시작</button>'
     : '<button type="button" class="btn primary wide" id="start" disabled>위에서 유형을 하나 골라 주세요</button>';
   const srcChips = '<div class="chips">'+slots.map(x=> x.ready
-      ? '<button type="button" class="chip" data-src="'+x.id+'" aria-pressed="'+sel.includes(x.id)+'">'+esc(x.label)+'</button>'
+      ? '<button type="button" class="chip" data-src="'+x.id+'" aria-pressed="'+sel.includes(x.id)+'">'+esc(x.label)+(isNew(store.school, x.id)?NBADGE:'')+'</button>'
       : '<button type="button" class="chip" disabled>'+esc(x.label)+' 준비 중</button>').join('')+'</div>';
   const sub = sel.includes('base') ? '<div class="subscope"><div class="lab">기본 개념에서 풀 부분</div>'+chips(RANGES, store.rng, 'rng', true)+'</div>' : '';
-  const srcs = sel.filter(id=>id!=='base').map(id=>'<li><b>'+SLOT_LABEL[id]+'</b>'+esc(schSrc(store.school, id).title)+'</li>').join('');
+  const srcs = sel.filter(id=>id!=='base').map(id=>'<li><b>'+SLOT_LABEL[id]+(isNew(store.school, id)?NBADGE:'')+'</b>'+esc(schSrc(store.school, id).title)+'</li>').join('');
   const exArts = [...exclOf(store.school)];
   const exLine = exArts.length ? '<p class="note" style="margin-top:6px">'+esc(store.school)+' 시험 범위에서 빠진 조항이라 안 내는 것: '+exArts.map(n=>'제'+n+'항 '+esc((ART[n]||{}).k||'')).join(', ')+'</p>' : '';
   // 이 범위에서 몇 문제 중 몇 개를 맞혀 봤는지(유형별로 따로 셈). 같은 게 자꾸 나온다는 항의를 줄이려고 보여 준다
@@ -1010,7 +1017,7 @@ function renderHome(){
   app.innerHTML =
    hero(bubbleText())+who+a2hsHTML()+
    '<h2 class="sec" style="margin-top:4px">어떻게 풀까요?</h2>'+cards+startBtn+
-   '<div class="setline"><span>'+esc(summary)+'</span><button type="button" class="linkbtn" id="tog">'+(store.open?'닫기':'바꾸기')+'</button></div>'+settings+
+   '<div class="setline"><span>'+esc(summary)+(slots.some(x=>x.ready && isNew(store.school, x.id))?NBADGE:'')+'</span><button type="button" class="linkbtn" id="tog">'+(store.open?'닫기':'바꾸기')+'</button></div>'+settings+
    vsHTML()+'<h2 class="sec">'+(ghost?'내 기록':'순위표')+'</h2>'+boardHTML();
   const chs=document.getElementById('chs'); if(chs) chs.onclick=renderPick;
   const wg=document.getElementById('weakgo'); if(wg) wg.onclick=startWeak;
