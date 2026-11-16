@@ -145,6 +145,17 @@ h2.sec{font-size:14px;font-weight:600;line-height:normal;color:var(--muted);marg
 .tk.oops{color:var(--muted);background:none;box-shadow:none;outline:1.5px dashed var(--muted);outline-offset:1px;border-radius:4px}
 .tk s{color:var(--muted);font-weight:400;margin-right:4px}.tk b{font-weight:700}
 .tk:disabled{cursor:default}
+.whyst{margin:0 0 12px;padding:10px 12px;background:var(--soft);border-radius:12px;font-size:14px;line-height:1.5}.whyst p{margin:0 0 6px}.whyst ul{margin:0;padding-left:18px}.whyst li{margin:2px 0}.whyst li b{display:block}
+.sjw{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 14px;font-size:22px;line-height:normal}.sjw b{font-weight:700}.sjw i{font-style:normal;color:var(--muted);font-size:16px}.sjw .sjo{color:var(--accent)}
+.sjl{display:grid;gap:10px;margin:0 0 16px}.sjr{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.sjr .sjp{min-width:3.2em;font-size:16px;font-weight:600}.sjr .sjh{font-size:16px;color:var(--accent);margin-left:2px}
+.sjr .chip.ok{border-color:#2a9d5c;background:var(--okbg);color:var(--ink)}.sjr .chip.ng{border-color:var(--accent);background:var(--soft);color:var(--accent);text-decoration:line-through}
+.spx{font-size:22px;line-height:2.4;margin:0 0 20px;padding:18px 12px 6px;background:var(--paper);border:1px solid var(--rule);border-radius:14px;word-break:break-all}
+.gp{position:relative;display:inline-block;width:8px;height:1.3em;vertical-align:middle;margin:0;padding:0;border:0;background:none;transition:width .12s}
+.gp::before{content:"";position:absolute;inset:-8px -7px}
+.gp,.gp:hover,.gp:active,.gp:focus{background:none;outline:none;-webkit-tap-highlight-color:transparent}.gp:focus-visible::after{background:var(--accent)}
+.gp::after{content:"";position:absolute;left:50%;top:-4px;width:2px;height:6px;margin-left:-1px;border-radius:1px;background:var(--rule)}
+.gp.on{width:24px}.gp.on::after{content:"∨";width:auto;height:auto;left:0;right:0;margin:0;top:-.8em;background:none;color:var(--accent);font-size:14px;line-height:1;text-align:center}
+.spr{margin:0 0 16px;padding:10px 12px;background:var(--paper);border:1px solid var(--rule);border-radius:14px;font-size:18px;line-height:1.9}.spr p{margin:0}.spr .lab{display:block;font-size:12px;line-height:1.4;color:var(--muted)}.spr .spm{color:var(--muted);margin-bottom:6px}
 /* 쓱쓱 */
 .swipe{position:relative;height:170px;margin:4px 0 12px;touch-action:none;overscroll-behavior:contain}
 .swhint{display:flex;justify-content:space-between;font-size:14px;line-height:normal;color:var(--muted);padding:0 6px}
@@ -319,8 +330,8 @@ function ORTH_UNPACK(b64){
   return JSON.parse(new TextDecoder().decode(out));
 }
 </script>
-<script src="data.js?v=8e0f903f"></script>
-<script src="school.js?v=b4bfa7a9"></script>
+<script src="data.js?v=c1b4fa51"></script>
+<script src="school.js?v=a22d57a7"></script>
 <script src="spot.js?v=77494439"></script>
 <script src="pairs.js?v=13af0387"></script>
 <script>
@@ -358,12 +369,14 @@ const TYPES = [
   {id:'pick', label:'바른 표기 고르기', desc:'문장을 보고 둘 중 맞는 표기를 고릅니다.'},
   {id:'swipe', label:'쓱쓱 넘기기', desc:'문장 하나씩, 맞으면 오른쪽 · 틀리면 왼쪽으로 밀어요.'},
   {id:'spot', label:'틀린 곳 찾기', desc:'카톡 대화에 숨은 틀린 표기를 눌러 찾아요.'},
+  {id:'siot', label:'사이시옷 정복하기', desc:'형태소가 한자어인지 순우리말인지 보고 정해요.'},
+  {id:'space', label:'직접 띄어쓰기', desc:'붙여 놓은 문장에서 띄울 자리를 눌러요.'},
 ];
-const KIND_LABEL = {pick:'바른 표기 고르기', pair:'바른 표기 고르기 · 두 문장', type:'직접 쓰기 · 3개째 도장', spot:'틀린 곳 찾기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
+const KIND_LABEL = {pick:'바른 표기 고르기', pair:'바른 표기 고르기 · 두 문장', type:'직접 쓰기 · 3개째 도장', spot:'틀린 곳 찾기', siot:'사이시옷 정복하기', space:'직접 띄어쓰기', swipe:'쓱쓱 넘기기 · 맞으면 →  틀리면 ←'};
 function h(str){ let x=5381; for(let i=0;i<str.length;i++) x=((x<<5)+x+str.charCodeAt(i))|0; return (x>>>0).toString(36); }
 const PICKS = D.picks.map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
 const BLANKS = [];   // 조항 빈칸 유형은 뺐음(답이 문장 안에 보여서). 데이터(D.blanks)만 남아 있음
-const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p; BYID['o'+p.id]=p;}); BLANKS.forEach(b=>BYID[b.id]=b);
+const BYID = {}; PICKS.forEach(p=>{BYID[p.id]=p; BYID['r'+p.id]=p; BYID['o'+p.id]=p; BYID['j'+p.id]=p; BYID['w'+p.id]=p;}); BLANKS.forEach(b=>BYID[b.id]=b);
 // 틀린 곳 찾기: 메시지 묶음 하나가 문제 하나. 오답 노트에서는 첫 조항으로 묶음
 // 뜻으로 가르는 짝(pairs.js): 바른 표기|다른 표기 → [바른 쪽 뜻, 다른 쪽 뜻]. 이 문제는 뜻을 먼저 고르고, 쓱쓱 넘기기에서는 뺀다
 const PAIRS = window.ORTH_PAIRS || {};
@@ -378,7 +391,7 @@ const rdH = v => { v=+v||0; return v && v<1e5 ? v*24+3 : v; };   // 옛 기록(�
 const dayOfH = h => Math.floor((h+9)/24);
 const kstDay = () => dayOfH(hourNo());
 const lvl = k => Math.min(RUN_N, +store.run[k]||0);
-const REV_H = 7*24;   // 익힌 단어는 7일 지나면 다시 확인, 맞히면 복습 도장 1개(이번 주에만 셈)
+const REV_H = 7*24;   // 외운 단어는 7일 지나면 다시 확인, 맞히면 복습 도장 1개(이번 주에만 셈)
 const canRev = k => lvl(k)>=RUN_N && hourNo()-rdH(store.rd[k])>=REV_H;
 const canStamp = k => { const h=rdH(store.rd[k]), n=hourNo(); return !h || (dayOfH(h)!==dayOfH(n) && n-h>=GAP_H); };   // 지금 이 단어에 도장을 찍을 수 있나
 const kindCode = q => q.kind==='swipe' ? 's' : q.kind==='type' ? 't' : 'p';
@@ -397,7 +410,7 @@ Object.keys(SS.src).forEach(key=>{
   let s = SS.src[key]; if(s.use) s = Object.assign({}, SS.src[s.use], {title:s.title, arts:s.arts});
   const P = (s.picks||[]).map(p=>Object.assign({id:'p'+h(p.s+'|'+p.o)}, p));
   const B = [];
-  P.forEach(p=>{ BYID[p.id]=p; BYID['o'+p.id]=p; if(!p.nb) BYID['r'+p.id]=p; }); B.forEach(b=>BYID[b.id]=b);
+  P.forEach(p=>{ BYID[p.id]=p; BYID['o'+p.id]=p; BYID['j'+p.id]=p; BYID['w'+p.id]=p; if(!p.nb) BYID['r'+p.id]=p; }); B.forEach(b=>BYID[b.id]=b);
   SRC[key] = {title:s.title, arts:new Set(s.arts||[]), P, B};
 });
 const schSrc = (sc, slot) => { const m=SS.map[sc]; return m && m[slot] && SRC[m[slot]] || null; };
@@ -606,7 +619,16 @@ function mkPick(items, scope){
   const ty = items.filter(p=>lvl(wordKey(p.id))===2 && canStamp(wordKey(p.id)) && typeable(p)), tys = new Set(ty.map(p=>p.id));
   return ty.map(p=>({kind:'type', it:p, id:p.id})).concat(pairUp(items.filter(p=>!tys.has(p.id)), scope));
 }
+// 사이시옷 정복하기: 제30항 낱말 중 짜임 자료(hanja.py)가 있는 것. 번호는 j+문제 번호(바른 표기 고르기와 도장을 따로 셈)
+const siotParts = it => (HJ[it.o]||[]).filter(x=>x[0]);
+const siotable = it => it.a===30 && siotParts(it).length>=2;
+// 직접 띄어쓰기: 띄어쓰기 조항 중 붙여 써도 되는 경우가 있는 제46·47항은 빼고, 두 표기가 띄어쓰기만 다른 문장. 번호는 w+문제 번호
+const SPACE_ARTS = new Set([2,41,42,43,44,45,48]);
+const noSp = v => String(v||'').replace(/\s+/g,'');
+const spaceable = it => SPACE_ARTS.has(it.a) && it.s!=='□' && it.s.split('□').length===2 && noSp(it.o)===noSp(it.x) && it.o!==it.x;
 function buildPool(type, S){
+  if(type==='siot') return S.P.filter(siotable).map(p=>({kind:'siot', it:p, id:'j'+p.id}));
+  if(type==='space') return S.P.filter(spaceable).map(p=>({kind:'space', it:p, id:'w'+p.id}));
   const pick = p=>({kind:'pick', it:p, id:p.id});
   if(type==='pick') return mkPick(S.P);
   if(type==='spot') return S.S.map(x=>({kind:'spot', it:x, id:x.id}));
@@ -633,7 +655,7 @@ function weight(q){
   (q.kind==='pair' ? [q.id, q.id2] : [q.id]).forEach(id=>{
     const k=wordKey(id), lv=lvl(k); let x;
     if(store.wrong[id]) x=5;
-    else if(lv>=RUN_N) x = (canRev(k) && q.kind!=='swipe') ? 3 : 0.1;   // 익힌 단어: 7일 지나면 복습 도장(쓱쓱 빼고)
+    else if(lv>=RUN_N) x = (canRev(k) && q.kind!=='swipe') ? 3 : 0.1;   // 외운 단어: 7일 지나면 복습 도장(쓱쓱 빼고)
     else if(!canStamp(k)) x=0.1;   // 오늘 이미 도장 받은 단어: 받을 단어가 남아 있으면 거의 안 나옴
     else if(q.kind==='swipe' && lv>=1) x=0.1;   // 쓱쓱으로는 1개까지만
     else x = lv===2 ? 4 : 3;
@@ -847,9 +869,9 @@ function loadTeachBoard(quiet){
   });
 }
 function statsHTML(){
-  return '<div class="card"><div class="stats"><div class="stat"><b>'+todayCount()+'</b><span>오늘 맞힘</span></div><div class="stat"><b>'+mastCount()+'</b><span>익힌 단어</span></div><div class="stat"><b>'+Object.keys(store.wrong).length+'</b><span>오답 노트</span></div></div></div>';
+  return '<div class="card"><div class="stats"><div class="stat"><b>'+todayCount()+'</b><span>오늘 맞힘</span></div><div class="stat"><b>'+mastCount()+'</b><span>외운 단어</span></div><div class="stat"><b>'+Object.keys(store.wrong).length+'</b><span>오답 노트</span></div></div></div>';
 }
-// 아직 못 익힌 단어: 이 범위의 바른 표기 문제 중 틀린 적이 있고 아직 익힘이 아닌 것. 많이 틀린 순으로 8개
+// 아직 못 외운 단어: 이 범위의 바른 표기 문제 중 틀린 적이 있고 아직 외움이 아닌 것. 많이 틀린 순으로 8개
 // 오늘 도장 받을 수 있는 단어(지금 범위). 2개째(쓰기 차례) → 틀린 적 많은 순
 function todayList(){
   if(!auth && !ghost) return [];
@@ -863,20 +885,32 @@ function todayLine(t){
 }
 // 바른 표기를 그대로 보여 주면 답을 외우고 풀게 되므로 두 표기를 섞어서 보여 줌
 const twoForms = p => (h(p.id).charCodeAt(0)%2 ? [p.o, p.x] : [p.x, p.o]).map(esc).join(' <i class="sep">/</i> ');
+// 오늘 도장 받을 단어가 왜 그 개수인지: 지금 범위에서 오늘 못 받는 단어를 까닭별로 세어 보여 줌(학생들이 자주 묻는 것)
+function whyFewHTML(n){
+  const P=scopeP(), now=hourNo(); let got=0, wait=0, mast=0;
+  P.forEach(p=>{ const k=wordKey(p.id), lv=lvl(k);
+    if(lv>=RUN_N){ if(!canRev(k)) mast++; }
+    else if(!canStamp(k)){ if(dayOfH(rdH(store.rd[k]))===dayOfH(now)) got++; else wait++; } });
+  if(!got && !wait && !mast) return '';
+  return '<div class="whyst"><p>지금 범위 단어 <b>'+P.length+'개</b> 중 오늘 도장을 받을 수 있는 단어는 <b>'+n+'개</b>예요. 나머지는 이래서 빠졌어요.</p><ul>'+
+    (got ? '<li><b>오늘 이미 받은 단어 '+got+'개</b> 같은 단어는 하루에 도장 1개만 받아요. 내일 다시 받을 수 있어요.</li>' : '')+
+    (wait ? '<li><b>받은 지 10시간이 안 된 단어 '+wait+'개</b> 날짜가 바뀌어도 10시간이 지나야 다음 도장을 받아요.</li>' : '')+
+    (mast ? '<li><b>외운 단어 '+mast+'개</b> 도장 3개를 다 모았어요. 마지막 도장에서 7일이 지나면 복습 도장으로 다시 나와요.</li>' : '')+'</ul></div>';
+}
 function weakHTML(){
-  const L=todayList(); if(!L.length) return '';
+  const L=todayList(); if(!L.length) return whyFewHTML(0) ? '<h2 class="sec">오늘 도장 받을 단어 0개</h2><div class="card">'+whyFewHTML(0)+'</div>' : '';
   const stp = x => x.rev ? '복습 도장' : x.lv===2 ? '직접 쓰기 차례' : '도장 '+x.lv+'/3';
-  return '<h2 class="sec">오늘 도장 받을 단어 '+L.length+'개</h2><div class="card"><ul class="weak">'+L.slice(0,8).map(x=>'<li><b>'+twoForms(x.it)+'</b><small>제'+x.it.a+'항 · '+stp(x)+(x.w?' · '+x.w+'번 틀림':'')+'</small></li>').join('')+'</ul>'+
+  return '<h2 class="sec">오늘 도장 받을 단어 '+L.length+'개</h2><div class="card">'+whyFewHTML(L.length)+'<ul class="weak">'+L.slice(0,8).map(x=>'<li><b>'+twoForms(x.it)+'</b><small>제'+x.it.a+'항 · '+stp(x)+(x.w?' · '+x.w+'번 틀림':'')+'</small></li>').join('')+'</ul>'+
     (L.length>8?'<p class="note">외 '+(L.length-8)+'개</p>':'')+
-    '<p class="note">단어마다 도장 3개를 모으면 익힌 단어예요. 하루 한 번 맞히면 1개 찍히고, 틀리면 그 단어 도장이 다 지워져요. 쓱쓱 넘기기로는 1개까지, 고르기로는 2개까지, 3개째는 직접 써야 찍혀요. 익힌 단어도 7일이 지나면 다시 나오고, 맞히면 복습 도장 1개예요.</p><button type="button" class="btn primary wide" id="weakgo">'+(L.length>15?'15개 풀기':'이 단어들 풀기')+'</button></div>';
+    '<p class="note">같은 단어로 도장을 3개 받으면 외운 단어로 쳐요. 하루 한 번 맞히면 1개 찍히고, 틀리면 그 단어 도장이 다 지워져요. 쓱쓱 넘기기로는 1개까지, 고르기로는 2개까지, 3개째는 직접 써야 찍혀요. 외운 단어도 7일이 지나면 다시 나오고, 맞히면 복습 도장 1개예요.</p><button type="button" class="btn primary wide" id="weakgo">'+(L.length>15?'15개 풀기':'이 단어들 풀기')+'</button></div>';
 }
 function startWeak(){ const L=todayList().slice(0,15).map(x=>x.it); if(!L.length) return; startSession(shuffle(mkPick(L, L.concat(scopeP()))), {from:'weak'}); }
-// 선생님 페이지: 학생별 표(익힌 단어 수, 이번 주 새로 익힘, 푼 수, 2초 안에 답한 비율, 마지막 활동)
+// 선생님 페이지: 학생별 표(외운 단어 수, 이번 주 새로 외움, 푼 수, 2초 안에 답한 비율, 마지막 활동)
 function teachStatsHTML(){
   const S=srvT.stats; if(!S) return srvT.statsState==='loading' ? '<p class="note">학생별 표 불러오는 중…</p>' : '';
   if(!S.length) return '<p class="note">이 학교 재원생 기록이 없습니다.</p>';
   const when = iso => { if(!iso) return '-'; const d=new Date(iso); if(isNaN(d)) return '-'; const n=Math.floor((Date.now()-d)/864e5); return n<=0?'오늘':n===1?'어제':n+'일 전'; };
-  return '<h2 class="sec">학생별 기록</h2><div class="card tstat"><table><thead><tr><th>이름</th><th>도장<small>익힌 단어</small></th><th>이번 주</th><th>푼 수</th><th>빨리 넘김</th><th>마지막</th></tr></thead><tbody>'+
+  return '<h2 class="sec">학생별 기록</h2><div class="card tstat"><table><thead><tr><th>이름</th><th>도장<small>외운 단어</small></th><th>이번 주</th><th>푼 수</th><th>빨리 넘김</th><th>마지막</th></tr></thead><tbody>'+
     S.map(r=>{ const fp = r.tn ? Math.round(r.fastN/r.tn*100) : null, fa = r.fastN ? Math.round((r.fastC||0)/r.fastN*100) : null;
       // 다 아는 학생도 빨리 넘기므로, 빨리 넘긴 답을 많이 틀릴 때만 표시(빨리 넘긴 답 10개 이상, 그중 정답률 75% 아래)
       const hot = r.fastN>=10 && fa<75;
@@ -900,7 +934,7 @@ function bubbleText(){
     if(i>0) return rows[0].s+'보다 우리 학교가 1인당 도장 '+(Math.round((rows[0].avg-rows[i].avg)*10)/10)+'개 뒤처져요. 도장 하나가 평균을 올립니다.';
     if(i===0 && rows[1] && rows[0].avg>0) return '학교 대항 1위예요. '+rows[1].s+'가 도장 '+(Math.round((rows[0].avg-rows[1].avg)*10)/10)+'개 차이로 따라와요.';
   }
-  if(t) return '오늘 '+t+'문제 맞혔어요. 단어마다 하루에 도장 1개, 3개를 모으면 익힌 단어예요.';
+  if(t) return '오늘 '+t+'문제 맞혔어요. 단어마다 하루에 도장 1개, 3개를 모으면 외운 단어예요.';
   return '느낌이 아니라 조항을 근거로 골라 보세요.';
 }
 function rankHTML(b, all, teach, per){
@@ -921,7 +955,7 @@ function rankHTML(b, all, teach, per){
   } else msg = one+' 순위에 올라갑니다.';
   return '<div class="rank">'+rows+'</div><div class="rank-msg go">'+msg+'</div>';
 }
-// 학교 대항: 학교 전체가 이번 주에 모은 도장(누적은 익힌 단어 수) ÷ 나누는 인원. 분자는 전원 포함.
+// 학교 대항: 학교 전체가 이번 주에 모은 도장(누적은 외운 단어 수) ÷ 나누는 인원. 분자는 전원 포함.
 // 나누는 인원은 학교별로 보정(경쟁이 붙은 상위 학교끼리 차이가 너무 벌어지지 않게). 표에 없는 학교는 재원생 수 그대로.
 //   동양: 35명까지만 / 경복: 13명 이상으로 / 명덕: 16명까지만
 const VS_ADJ = { '동양': n => Math.min(n, 35), '경복': n => Math.max(n, 13), '명덕': n => Math.min(n, 16) };
@@ -953,7 +987,7 @@ function boardHTML(){
   return '<div class="card"><div class="seg">'+
     chips([{id:'school', label:store.school}, {id:'all', label:'전체'}], sc, 'sc', false)+
     chips([{id:'week', label:'이번 주'}, {id:'total', label:'누적'}], per, 'per', false)+'</div>'+
-    '<p class="note bnote">'+(per==='week' ? '이번 주에 모은 도장이에요. 단어마다 도장 3개를 모으면 익힌 단어예요. 하루 한 번 맞히면 1개 찍히고, 틀리면 그 단어 도장이 다 지워져요. 익힌 단어도 7일마다 다시 맞히면 복습 도장 1개예요.' : '지금까지 모은 도장이에요. 단어마다 도장 3개까지고, 3개를 다 모으면 익힌 단어예요. 틀리면 그 단어 도장이 다 지워져요.')+'</p>'+
+    '<p class="note bnote">'+(per==='week' ? '이번 주에 모은 도장이에요. 같은 단어로 도장을 3개 받으면 외운 단어로 쳐요. 하루 한 번 맞히면 1개 찍히고, 틀리면 그 단어 도장이 다 지워져요. 외운 단어도 7일마다 다시 맞히면 복습 도장 1개예요.' : '지금까지 모은 도장이에요. 단어마다 도장 3개까지고, 3개를 다 모으면 외운 단어예요. 틀리면 그 단어 도장이 다 지워져요.')+'</p>'+
     body+'</div>'+(teach?teachStatsHTML():statsHTML()+weakHTML());
 }
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -1008,7 +1042,7 @@ function renderHome(){
     return {t, n:pool.length, done}; })();
   const progLine = '<p class="note prog">이 범위의 '+((TYPES.find(x=>x.id===prog.t)||{}).label||'')+' <b>'+prog.n+'문제</b> 중 맞혀 본 문제 <b>'+prog.done+'개</b>'+(prog.n ? ' ('+Math.round(prog.done/prog.n*100)+'%)' : '')+
     (prog.n && prog.done>=prog.n ? ' · 다 풀었어요. 범위를 넓히거나 다른 유형을 골라 보세요.' : '')+
-    ((auth||ghost) && prog.t!=='spot' ? '<br>'+todayLine(prog.t) : '')+'</p>';
+    ((auth||ghost) && !['spot','siot','space'].includes(prog.t) ? '<br>'+todayLine(prog.t) : '')+'</p>';
   const summary = '범위: '+sel.map(id=>SLOT_LABEL[id]).join(' · ')+' · 한 번에 '+(cur==='swipe'?SWIPE_N+'장':store.n+'문제')+' · '+prog.done+'/'+prog.n;
   const settings = !store.open ? '' : '<div class="settings">'+
     '<h2 class="sec" style="margin-top:12px">범위</h2>'+srcChips+sub+(srcs?'<ul class="srcs">'+srcs+'</ul>':'')+exLine+progLine+
@@ -1058,7 +1092,7 @@ function startWrong(){
   const seenW = {};
   const qs = Object.keys(store.wrong).map(id=>{
     const it=BYID[id]; if(!it || id[0]==='r' || id[0]==='b') return null;   // 'r','b': 없앤 유형(근거 조항·조항 빈칸)
-    let kind = {s:'spot', o:'swipe'}[id[0]] || 'pick';
+    let kind = {s:'spot', o:'swipe', j:'siot', w:'space'}[id[0]] || 'pick';
     if(kind==='swipe' && (pairOf(it) || it.ns)){ kind='pick'; id=it.id; }   // 짝은 쓱쓱 대신 바른 표기 고르기로
     if(seenW[id]) return null; seenW[id]=1;
     return {kind, it, id};
@@ -1139,6 +1173,18 @@ function renderQ(){
         : (q.bad[bi+'-'+pi] ? '<button type="button" class="tk" data-t="'+bi+'-'+pi+'" data-e="1">'+esc(p.x)+'</button>'
                             : '<button type="button" class="tk" data-t="'+bi+'-'+pi+'" data-r="1">'+esc(p.o)+'</button>')).join('')+'</div></div>').join('')+'</div>'+
       '<button type="button" class="btn primary wide next" id="chk">확인</button>';
+  } else if(q.kind==='siot'){
+    const ps=siotParts(it);
+    body=(it.s!=='□' ? '<p class="qsent" id="qs" style="margin-bottom:8px">'+sentFilled(it,'blank')+'</p>' : '')+
+      '<p class="sjw" id="sjw">'+ps.map(x=>'<b>'+esc(x[0])+'</b>').join('<i>+</i>')+'</p>'+
+      '<p class="mnote">형태소마다 한자어인지 순우리말인지 고르세요.</p>'+
+      '<div class="sjl" id="sjl">'+ps.map((x,i)=>'<div class="sjr" data-i="'+i+'"><span class="sjp">'+esc(x[0])+'</span>'+SJ_OPTS.map(o=>'<button type="button" class="chip" data-k="'+o[0]+'" aria-pressed="false">'+o[1]+'</button>').join('')+'</div>').join('')+'</div>'+
+      '<button type="button" class="btn primary wide next" id="chk" disabled>확인</button><div id="sj2"></div>';
+  } else if(q.kind==='space'){
+    const sp=spaceInfo(it);
+    body='<p class="note" style="margin:0 0 12px">띄어 써야 할 자리를 모두 누르세요. 다시 누르면 붙습니다.</p>'+
+      '<div class="spx" id="spx">'+sp.ch.map((c,i)=>(i && !/[.,?!]/.test(c)?'<button type="button" class="gp" data-g="'+i+'" aria-pressed="false" aria-label="'+esc(sp.ch[i-1])+'와 '+esc(c)+' 사이 띄우기"></button>':'')+'<span>'+esc(c)+'</span>').join('')+'</div>'+
+      '<button type="button" class="btn primary wide next" id="chk">확인</button>';
   } else if(q.kind==='swipe'){
     const word = q.show ? it.o : it.x;
     body='<div class="swipe" id="sw"><div class="swc" id="sc"><p class="qsent" style="margin:0">'+esc(it.s).replace('□','<span class="mark">'+esc(word)+'</span>')+'</p>'+
@@ -1153,6 +1199,11 @@ function renderQ(){
   if(q.kind==='spot'){
     app.querySelectorAll('.tk').forEach(b=>{ b.setAttribute('aria-pressed','false'); b.onclick=()=>{ const on=b.classList.toggle('sel'); b.setAttribute('aria-pressed', on?'true':'false'); }; });
     document.getElementById('chk').onclick=()=>answerSpot(q);
+  } else if(q.kind==='siot'){
+    bindSiot(q);
+  } else if(q.kind==='space'){
+    app.querySelectorAll('.gp').forEach(b=>b.onclick=()=>{ const on=b.classList.toggle('on'); b.setAttribute('aria-pressed', on?'true':'false'); });
+    document.getElementById('chk').onclick=()=>answerSpace(q);
   } else if(q.kind==='swipe'){
     bindSwipe(q);
   } else if(q.kind==='pair'){
@@ -1202,13 +1253,13 @@ function noStLine(o){
   if(o.today) L.push('오늘 이미 도장 받은 단어 '+o.today+'개는 내일 다시 받을 수 있어요. 쓱쓱 넘기기와 바른 표기 고르기는 같은 단어로 셉니다.');
   if(o.capS) L.push('쓱쓱 넘기기로는 도장 1개까지예요. '+o.capS+'개는 바른 표기 고르기로 풀면 받아요.');
   if(o.capP) L.push('고르기로는 도장 2개까지예요. 3개째는 직접 쓰기로 받아요.');
-  if(o.mast) L.push('익힌 단어 '+o.mast+'개는 익힌 지 7일이 지나야 복습 도장을 받아요.');
+  if(o.mast) L.push('외운 단어 '+o.mast+'개는 외운 지 7일이 지나야 복습 도장을 받아요.');
   return L.length ? '<span class="nost">'+L.join('<br>')+'</span>' : '';
 }
 function afterAnswer(ok, q, extra, noStamp){
   record(q, ok); sess.res.push({q, ok, extra});
   const fb=document.getElementById('fb');
-  const need = !ok && ['pick','pair','swipe','type'].includes(q.kind) ? (q.kind==='pair' ? [q.it, q.it2] : [q.it]) : [];
+  const need = !ok && (['pick','pair','swipe','type'].includes(q.kind) || (q.kind==='siot' && q.sjPick)) ? (q.kind==='pair' ? [q.it, q.it2] : [q.it]) : [];
   const fixw = need.length ? '<div class="fixw"><p>바른 표기를 그대로 써 보고 넘어가요.</p>'+need.map((p,i)=>'<label>'+(need.length>1?'<span class="pn">'+['①','②'][i]+'</span>':'')+'<input class="tin" data-i="'+i+'" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="바른 표기 쓰기"></label>').join('')+'</div>' : '';
   fb.innerHTML = (noStamp?'':'<img class="stampfb" src="'+(ok?'st-right.webp':'st-wrong.webp')+'" alt="'+(ok?'정답':'오답')+'">') + (extra||'') + fixw +
     '<button type="button" class="btn primary next" id="nx"'+(need.length?' disabled':'')+'>'+(sess.i+1<sess.qs.length?'다음':'결과 보기')+'</button>';
@@ -1256,6 +1307,52 @@ function answerSpot(q){
   afterAnswer(ok, q, head+spotWhy(q.it, q.bad, oops));
   sess.res[sess.res.length-1].oops = oops;
   app.querySelectorAll('.tk.hit, .tk.missed').forEach(b=>{ const p=findPart(q.it, b.dataset.t); if(p) b.innerHTML='<s>'+esc(p.x)+'</s><b>'+esc(p.o)+'</b>'; });
+}
+// 사이시옷 정복하기: ① 형태소마다 한자어/순우리말/접미사·외래어 고르기 → 확인하면 바로 답과 한자를 보여 줌 → ② 그래서 사이시옷을 적는지 안 적는지 고르기. 둘 다 맞아야 정답
+const SJ_OPTS = [['한','한자어'],['고','순우리말'],['밖','접미사/외래어']];
+const sjKind = x => x[2]==='한' ? '한' : x[2]==='고' ? '고' : '밖';
+const sjHas = it => it.o !== siotParts(it).map(x=>x[0].replace(/-/g,'')).join('');   // 형태소를 그냥 이은 것과 다르면 사이시옷을 적은 낱말
+function bindSiot(q){
+  const it=q.it, ps=siotParts(it), pick={}, chk=document.getElementById('chk');
+  app.querySelectorAll('.sjr').forEach(r=>{ const i=+r.dataset.i; r.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
+    pick[i]=b.dataset.k; r.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed', x===b?'true':'false'));
+    chk.disabled = ps.some((x,j)=>!pick[j]); }); });
+  chk.onclick=()=>{ if(chk.disabled) return;
+    const bad=[]; app.querySelectorAll('.sjr').forEach(r=>{ const i=+r.dataset.i, x=ps[i], k=sjKind(x), good = pick[i]===k; if(!good) bad.push(x[0]);
+      r.querySelectorAll('.chip').forEach(b=>{ b.disabled=true; if(b.dataset.k===k) b.classList.add('ok'); else if(b.dataset.k===pick[i]) b.classList.add('ng'); });
+      if(x[1]) r.insertAdjacentHTML('beforeend', '<span class="sjh">'+esc(x[1])+'</span>'); });
+    q.sjBad=bad; chk.remove();
+    document.getElementById('sj2').innerHTML='<p class="mnote">'+(bad.length ? '틀린 것이 있어요('+esc(bad.join(', '))+'). 위에 표시한 것을 보고 고르세요. ' : '')+'그래서 사이시옷을 쓸까요, 말까요?</p>'+
+      '<div class="opts two" id="sjo"><button type="button" class="opt" data-v="1">쓴다</button><button type="button" class="opt" data-v="0">안 쓴다</button></div>';
+    document.querySelectorAll('#sjo .opt').forEach(b=>b.onclick=()=>answerSiot(q, b)); };
+}
+function answerSiot(q, btn){
+  const it=q.it, has=sjHas(it), right = (btn.dataset.v==='1')===has, ok = right && !q.sjBad.length;
+  document.querySelectorAll('#sjo .opt').forEach(b=>{ b.disabled=true; if((b.dataset.v==='1')===has) b.classList.add('ok'); else if(b===btn) b.classList.add('ng'); });
+  document.getElementById('sjw').insertAdjacentHTML('beforeend', '<i>→</i><b class="sjo">'+esc(it.o)+'</b>');
+  const qs=document.getElementById('qs'); if(qs) qs.innerHTML = sentFilled(it, 'mark');
+  q.sjPick = right ? '' : btn.textContent;
+  const head = ok ? '' : '<div class="note" style="margin:0 0 4px">'+[q.sjBad.length ? '잘못 고른 형태소: '+esc(q.sjBad.join(', ')) : '', right ? '' : '사이시옷을 ‘'+esc(btn.textContent)+'’고 고름'].filter(Boolean).join('<br>')+'</div>';
+  afterAnswer(ok, q, head+whyLine(it));
+  if(!ok) sess.res[sess.res.length-1].chosen = it.o;
+}
+// 직접 띄어쓰기: 문장을 다 붙여서 보여 주고 띄울 자리를 누름. 채점은 문제 낱말 자리(앞뒤 경계 포함)만 — 다른 자리는 붙여 써도 되는 경우가 있어서
+function spaceInfo(it){
+  const i=it.s.indexOf('□'), full=it.s.replace('□', it.o), ch=[], truth={}; let n=0;
+  for(const c of full){ if(/\s/.test(c)){ if(n) truth[n]=1; } else { ch.push(c); n++; } }
+  const cs=[...noSp(it.s.slice(0,i))].length, ce=cs+[...noSp(it.o)].length;
+  return {full, ch, truth, cs, ce, a:Math.max(1,cs), b:Math.min(ch.length-1, ce)};   // cs~ce: 문제 낱말 글자 자리, a~b: 채점하는 틈 번호(틈 g = g-1번째와 g번째 글자 사이)
+}
+function answerSpace(q){
+  const it=q.it, sp=spaceInfo(it), on={}; app.querySelectorAll('.gp.on').forEach(b=>{ on[+b.dataset.g]=1; });
+  let ok=true; for(let g=sp.a; g<=sp.b; g++) if(!!on[g]!==!!sp.truth[g]) ok=false;
+  const seg = (m, from, to) => sp.ch.slice(from, to).map((c,k)=>(k && m[from+k] ? ' ' : '')+c).join('');
+  const line = m => sp.ch.map((c,i)=>(i && m[i] ? ' ' : '')+(i===sp.cs ? '<span class="mark">' : '')+esc(c)+(i===sp.ce-1 ? '</span>' : '')).join('');
+  const lo=Math.max(0, sp.cs-1), hi=Math.min(sp.ch.length, sp.ce+1);
+  document.getElementById('chk').remove();
+  document.getElementById('spx').outerHTML = '<div class="spr">'+(ok ? '' : '<p class="spm"><span class="lab">내가 띄운 것</span>'+line(on)+'</p>')+'<p class="spt"><span class="lab">바른 띄어쓰기</span>'+line(sp.truth)+'</p><p class="cap" style="text-align:left;font-size:13px;margin:6px 0 0">밑줄 친 부분만 채점했어요.</p></div>';
+  afterAnswer(ok, q, whyLine(it));
+  if(!ok) sess.res[sess.res.length-1].chosen = seg(on, lo, hi);
 }
 function findPart(it, t){ const [bi,pi]=t.split('-').map(Number); const p=it.t[bi]&&it.t[bi][1][pi]; return p && typeof p!=='string' ? p : null; }
 // 쓱쓱: 오른쪽 = 맞음, 왼쪽 = 틀림. 손가락으로 넘기거나 버튼
@@ -1315,6 +1412,8 @@ function renderResult(){
       if(r.q.kind==='spot') return '<li>'+(spotWhy(it, r.q.bad, r.oops)||'<div class="w2">틀린 곳이 없는 대화였는데 고른 것이 있었어요.</div>')+'</li>';
       if(r.q.kind==='pair') return '<li><div class="w1">① '+sentFilled(it,'fix',it.x)+'<br>② '+sentFilled(r.q.it2,'fix',r.q.it2.x)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+(r.q.it2.w!==it.w?' / '+esc(r.q.it2.w):'')+'</div></li>';
       if(r.q.kind==='swipe') return '<li><div class="w1">'+(r.q.show ? sentFilled(it,'ok')+'<span class="was">맞는 표기였는데 틀림으로 넘김</span>' : sentFilled(it,'fix',it.x))+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
+      if(r.q.kind==='siot') return '<li><div class="w1">'+esc(siotParts(it).map(x=>x[0]).join(' + '))+' → <b>'+esc(it.o)+'</b>'+(r.q.sjPick ? '<span class="was">사이시옷을 ‘'+esc(r.q.sjPick)+'’고 고름</span>' : '')+(r.q.sjBad && r.q.sjBad.length ? '<span class="was">잘못 고른 형태소: '+esc(r.q.sjBad.join(', '))+'</span>' : '')+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div>'+hanjaHTML(it.o)+'</li>';
+      if(r.q.kind==='space') return '<li><div class="w1">'+sentFilled(it,'mark')+(r.chosen ? '<span class="was">‘'+esc(r.chosen)+'’(으)로 띄움</span>' : '')+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
       return '<li><div class="w1">'+sentFilled(it,'fix',r.chosen)+'</div><div class="w2">'+esc('제'+it.a+'항'+partLabel(it)+loc)+' · '+esc(it.w)+'</div></li>';
     }).join('')+'</ul>';
   }
@@ -1329,7 +1428,7 @@ function renderResult(){
   // 누적 점수는 같은 문제를 하루에 한 번만 세므로, 왜 안 오르는지 보이게 알려 준다
   const gained = sess.gained||0, rep = c - gained;
   const mg = sess.mastGain||0, ml = sess.mastLost||0, kg = (sess.kanGain||0)+(sess.revGain||0);
-  const gainLine = ghost ? '' : '<p class="gain">도장 <b>'+(kg<0?kg:'+'+kg)+'</b>'+(sess.revGain?' (복습 '+sess.revGain+')':'')+' · 익힌 단어 <b>+'+mg+'</b>'+(ml ? ' · 틀려서 다시 익히는 중으로 간 단어 '+ml+'개' : '')+noStLine(sess.noSt)+'</p>';
+  const gainLine = ghost ? '' : '<p class="gain">도장 <b>'+(kg<0?kg:'+'+kg)+'</b>'+(sess.revGain?' (복습 '+sess.revGain+')':'')+' · 외운 단어 <b>+'+mg+'</b>'+(ml ? ' · 틀려서 다시 외우는 중으로 간 단어 '+ml+'개' : '')+noStLine(sess.noSt)+'</p>';
   app.innerHTML=hero(kb)+'<div class="scorebox"><div class="qkind">결과</div><p class="score">'+c+' <span>/ '+n+'</span></p>'+gainLine+stamp+'</div>'+list+
     '<div class="row">'+(wrong.length?'<button type="button" class="btn primary" id="rw">틀린 문제만 다시</button>':'')+
     '<button type="button" class="btn" id="again">한 번 더</button><button type="button" class="btn" id="home2">처음으로</button></div>';
@@ -1371,7 +1470,7 @@ function renderRules(){
 }
 
 /* ---------- 오답 노트 */
-// 자주 틀린 단어: 바른 표기 문제(고르기·쓱쓱·쓰기 합쳐) 지금까지 2번 이상 틀린 단어. 다시 맞혀도, 익혀도 남는다. 많이 틀린 순
+// 자주 틀린 단어: 바른 표기 문제(고르기·쓱쓱·쓰기 합쳐) 지금까지 2번 이상 틀린 단어. 다시 맞혀도, 외워도 남는다. 많이 틀린 순
 const FREQ_W = 2, FREQ_SHOW = 20;
 function freqList(){
   const seen={}, L=[];
@@ -1391,9 +1490,9 @@ function renderNotes(){
   const by={}; ids.forEach(id=>{ const a=BYID[id].a; (by[a]=by[a]||[]).push(id); });
   const rows=Object.keys(by).map(Number).sort((x,y)=>by[y].length-by[x].length||x-y);
   const max=Math.max(1, ...rows.map(a=>by[a].length));
-  const freq = F.length ? '<h2 class="sec">자주 틀린 단어 '+F.length+'개</h2><div class="card"><ul class="weak freq">'+F.slice(0,FREQ_SHOW).map(x=>'<li><b>'+twoForms(x.it)+'</b><small>제'+x.it.a+'항 · '+x.n+'번 중 '+x.w+'번 틀림 · '+(x.lv>=RUN_N?'익힘':'도장 '+x.lv+'/3')+'</small></li>').join('')+'</ul>'+
+  const freq = F.length ? '<h2 class="sec">자주 틀린 단어 '+F.length+'개</h2><div class="card"><ul class="weak freq">'+F.slice(0,FREQ_SHOW).map(x=>'<li><b>'+twoForms(x.it)+'</b><small>제'+x.it.a+'항 · '+x.n+'번 중 '+x.w+'번 틀림 · '+(x.lv>=RUN_N?'외움':'도장 '+x.lv+'/3')+'</small></li>').join('')+'</ul>'+
     (F.length>FREQ_SHOW?'<p class="note">외 '+(F.length-FREQ_SHOW)+'개</p>':'')+
-    '<p class="note">지금까지 2번 이상 틀린 단어입니다. 다시 맞혀도, 익힌 뒤에도 여기에는 남습니다.</p><button type="button" class="btn primary wide" id="fq">자주 틀린 단어만 풀기</button></div>' : '';
+    '<p class="note">지금까지 2번 이상 틀린 단어입니다. 다시 맞혀도, 외운 뒤에도 여기에는 남습니다.</p><button type="button" class="btn primary wide" id="fq">자주 틀린 단어만 풀기</button></div>' : '';
   app.innerHTML='<div class="qkind">오답 노트</div>'+
     (ids.length ? '<p class="note" style="margin-top:0">다시 맞히면 오답 노트에서 빠집니다. 많이 틀린 조항부터 보여 줍니다.</p>'+
     rows.map(a=>'<div class="nrow"><span class="no">제'+a+'항</span><span><span style="display:block;margin-bottom:4px">'+esc(ART[a]?ART[a].k:'')+'</span><span class="meter"><i style="width:'+(by[a].length/max*100)+'%"></i></span></span><button type="button" class="linkbtn" data-goart="'+a+'">'+by[a].length+'개</button></div>').join('')+
