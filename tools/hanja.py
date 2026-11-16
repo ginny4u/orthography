@@ -102,6 +102,14 @@ for _w, _b in ADD.items():
     SPECIAL[_w] = _b
     WORDS.setdefault(_w, [x[0] for x in _b])
 NOTE.update({'나라님': '‘-님’은 접미사라 합성어가 아님(파생어) → 사이시옷 없음', '나무꾼': '‘-꾼’은 접미사라 합성어가 아님(파생어) → 사이시옷 없음'})
+# 2026-11-16 추가: 더 공부하기(심화) 사이시옷 낱말(tools/simhwa_words.py)
+import simhwa_words as _sw
+for _w, _b in _sw.HANJA.items():
+    if _w in WORDS:
+        continue
+    SPECIAL[_w] = _b
+    WORDS[_w] = [x[0] for x in _b]
+NOTE.update({k: v for k, v in _sw.HANJA_NOTE.items() if k not in NOTE})
 SIX = ('곳간', '셋방', '숫자', '찻간', '툇간', '횟수')
 
 def breakdown(word):

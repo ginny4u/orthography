@@ -330,8 +330,8 @@ function ORTH_UNPACK(b64){
   return JSON.parse(new TextDecoder().decode(out));
 }
 </script>
-<script src="data.js?v=c1b4fa51"></script>
-<script src="school.js?v=a22d57a7"></script>
+<script src="data.js?v=e3007585"></script>
+<script src="school.js?v=b635fabc"></script>
 <script src="spot.js?v=77494439"></script>
 <script src="pairs.js?v=13af0387"></script>
 <script>
@@ -354,8 +354,8 @@ const canonSchool = s => SCHOOLS.find(x=>schoolKey(x)===schoolKey(s)) || s;
 const GHOST = '👻';   // 졸업생 모드(기본 개념만, 기록은 폰에만)
 let ghost = false;
 const SS = window.ORTH_SCHOOL || {src:{}, map:{}};  // 학교별 교과서·프린트·올림포스 범위(school.js)
-const PARTS = sc => ['기본 개념','교과서','프린트'].concat(sc==='경복여고'||sc==='명덕고' ? ['올림포스'] : []).concat(['주간 복습']);
-const SLOTS = [{id:'base', label:'기본 개념'}, {id:'tb', label:'교과서'}, {id:'pr', label:'프린트'}, {id:'ol', label:'올림포스'}, {id:'cl', label:'주간 복습'}];
+const PARTS = sc => ['기본 개념','교과서','프린트'].concat(sc==='경복여고'||sc==='명덕고' ? ['올림포스'] : []).concat(['주간 복습', '더 공부하기(심화)']);
+const SLOTS = [{id:'base', label:'기본 개념'}, {id:'tb', label:'교과서'}, {id:'pr', label:'프린트'}, {id:'ol', label:'올림포스'}, {id:'cl', label:'주간 복습'}, {id:'ex', label:'더 공부하기(심화)'}];
 const SLOT_LABEL = {}; SLOTS.forEach(x=>SLOT_LABEL[x.id]=x.label);
 const ART = {}; D.arts.forEach(a=>ART[a.n]=a);
 const RANGES = [
@@ -580,9 +580,9 @@ function allowedArts(rng){
 // 고른 범위(자료가 새로 생기면 다시 전부 고른 상태로 시작)
 function srcSel(){
   const ready = slotsOf(store.school).filter(x=>x.ready).map(x=>x.id), key = store.school+':'+ready.join();
-  if(store.srcKey!==key || !Array.isArray(store.src)){ store.src=ready.slice(); store.srcKey=key; }
+  if(store.srcKey!==key || !Array.isArray(store.src)){ store.src=ready.filter(id=>id!=='ex'); store.srcKey=key; }   // 더 공부하기(심화)는 학생이 직접 골라야 들어감
   const sel = store.src.filter(id=>ready.includes(id));
-  return sel.length ? sel : ready;
+  return sel.length ? sel : ready.filter(id=>id!=='ex');
 }
 // 학교 시험 범위에서 빠진 조항(학교 표의 excl): 그 학교 학생에겐 어느 자료에서도 안 낸다
 // 학교 표(school.js)의 new: 범위를 새로 더한 날. 그날부터 NEW_DAYS일 동안 범위 이름 옆에 N 표시

@@ -522,15 +522,19 @@ MD_CL = _clinic(CL_TITLE('11.1주'), _merge(_cw.MD, _cw.MD105, _cw.MD111))
 GB_CL = _clinic(CL_TITLE('11.2주'), _merge(_cw.GB105, _cw.GB111, _cw.GB112))
 HS_CL = _clinic(CL_TITLE('11.1주'), _merge(_cw.HS111))
 
+# 더 공부하기(심화): 학교 범위 밖(족보에서 뽑은 사이시옷·띄어쓰기). 다섯 학교 같은 자료, 명덕고는 excl로 사이시옷이 빠짐
+import simhwa_words as _sw
+EX = dict(title="학교 범위 밖의 단어들이 나와요.", arts=[], picks=[p for p in _sw.picks() if p['x'] not in _EZ], blanks=[])
+
 SRC = dict(mirae=MIRAE, donga=DONGA, donga_dy=DONGA_DY, gh=GONGHANG_PR, hs=HANSEO_PR, md=MYUNGDUK_OL, mdp=MYUNGDUK_PR,
-           dy_cl=DY_CL, gh_cl=GH_CL, md_cl=MD_CL, gb_cl=GB_CL, hs_cl=HS_CL)
+           dy_cl=DY_CL, gh_cl=GH_CL, md_cl=MD_CL, gb_cl=GB_CL, hs_cl=HS_CL, ex=EX)
 SCHOOLS = {
     # new: 새로 더한 날(이날부터 열흘 동안 화면 범위 옆에 N 표시)
-    '공항고': dict(tb='mirae', pr='gh', cl='gh_cl', new=dict(cl='2026-11-15')),
-    '동양고': dict(tb='donga_dy', cl='dy_cl', new=dict(cl='2026-11-15')),
-    '명덕고': dict(tb='donga_dy', pr='mdp', ol='md', cl='md_cl', excl=[30], new=dict(tb='2026-11-15', pr='2026-11-15', cl='2026-11-15')),   # 명덕고 시험 범위에서 사이시옷(제30항) 빠짐 → 모든 자료에서 제외
-    '한서고': dict(tb='mirae', pr='hs', cl='hs_cl', new=dict(cl='2026-11-15')),
-    '경복여고': dict(tb='donga', cl='gb_cl', new=dict(cl='2026-11-15')),
+    '공항고': dict(tb='mirae', pr='gh', cl='gh_cl', ex='ex', new=dict(cl='2026-11-15', ex='2026-11-16')),
+    '동양고': dict(tb='donga_dy', cl='dy_cl', ex='ex', new=dict(cl='2026-11-15', ex='2026-11-16')),
+    '명덕고': dict(tb='donga_dy', pr='mdp', ol='md', cl='md_cl', ex='ex', excl=[30], new=dict(tb='2026-11-15', pr='2026-11-15', cl='2026-11-15', ex='2026-11-16')),   # 명덕고 시험 범위에서 사이시옷(제30항) 빠짐 → 모든 자료에서 제외
+    '한서고': dict(tb='mirae', pr='hs', cl='hs_cl', ex='ex', new=dict(cl='2026-11-15', ex='2026-11-16')),
+    '경복여고': dict(tb='donga', cl='gb_cl', ex='ex', new=dict(cl='2026-11-15', ex='2026-11-16')),
 }
 
 if __name__ == '__main__':
