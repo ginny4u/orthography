@@ -516,11 +516,11 @@ def CL_TITLE(wk):
     return "매주 클리닉 수업에서 다룬 낱말이 더해져요(지금 %s까지)" % wk
 
 
-DY_CL = _clinic(CL_TITLE('11.1주'), _merge(_cw.DY, _cw.DY105, _cw.DY111, _cw.DYREV))
-GH_CL = _clinic(CL_TITLE('11.1주'), _merge(_cw.GH, _cw.GH105, _cw.GH111))
-MD_CL = _clinic(CL_TITLE('11.1주'), _merge(_cw.MD, _cw.MD105, _cw.MD111))
+DY_CL = _clinic(CL_TITLE('11.2주'), _merge(_cw.DY, _cw.DY105, _cw.DY111, _cw.DYREV, _cw.DY112))
+GH_CL = _clinic(CL_TITLE('11.2주'), _merge(_cw.GH, _cw.GH105, _cw.GH111, _cw.GH112))
+MD_CL = _clinic(CL_TITLE('11.2주'), _merge(_cw.MD, _cw.MD105, _cw.MD111, _cw.MD112))
 GB_CL = _clinic(CL_TITLE('11.2주'), _merge(_cw.GB105, _cw.GB111, _cw.GB112))
-HS_CL = _clinic(CL_TITLE('11.1주'), _merge(_cw.HS111))
+HS_CL = _clinic(CL_TITLE('11.2주'), _merge(_cw.HS111, _cw.HS112))
 
 # 더 공부하기(심화): 학교 범위 밖(족보에서 뽑은 사이시옷·띄어쓰기). 다섯 학교 같은 자료, 명덕고는 excl로 사이시옷이 빠짐
 import simhwa_words as _sw
@@ -530,10 +530,10 @@ SRC = dict(mirae=MIRAE, donga=DONGA, donga_dy=DONGA_DY, gh=GONGHANG_PR, hs=HANSE
            dy_cl=DY_CL, gh_cl=GH_CL, md_cl=MD_CL, gb_cl=GB_CL, hs_cl=HS_CL, ex=EX)
 SCHOOLS = {
     # new: 새로 더한 날(이날부터 열흘 동안 화면 범위 옆에 N 표시)
-    '공항고': dict(tb='mirae', pr='gh', cl='gh_cl', ex='ex', new=dict(cl='2026-11-15', ex='2026-11-16')),
-    '동양고': dict(tb='donga_dy', cl='dy_cl', ex='ex', new=dict(cl='2026-11-15', ex='2026-11-16')),
-    '명덕고': dict(tb='donga_dy', pr='mdp', ol='md', cl='md_cl', ex='ex', excl=[30], new=dict(tb='2026-11-15', pr='2026-11-15', cl='2026-11-15', ex='2026-11-16')),   # 명덕고 시험 범위에서 사이시옷(제30항) 빠짐 → 모든 자료에서 제외
-    '한서고': dict(tb='mirae', pr='hs', cl='hs_cl', ex='ex', new=dict(cl='2026-11-15', ex='2026-11-16')),
+    '공항고': dict(tb='mirae', pr='gh', cl='gh_cl', ex='ex', new=dict(cl='2026-11-25', ex='2026-11-16')),
+    '동양고': dict(tb='donga_dy', cl='dy_cl', ex='ex', new=dict(cl='2026-11-25', ex='2026-11-16')),
+    '명덕고': dict(tb='donga_dy', pr='mdp', ol='md', cl='md_cl', ex='ex', excl=[30], new=dict(tb='2026-11-15', pr='2026-11-15', cl='2026-11-25', ex='2026-11-16')),   # 명덕고 시험 범위에서 사이시옷(제30항) 빠짐 → 모든 자료에서 제외
+    '한서고': dict(tb='mirae', pr='hs', cl='hs_cl', ex='ex', new=dict(cl='2026-11-25', ex='2026-11-16')),
     '경복여고': dict(tb='donga', cl='gb_cl', ex='ex', new=dict(cl='2026-11-15', ex='2026-11-16')),
 }
 
